@@ -1,0 +1,3551 @@
+export interface SongItem {
+  title: string;
+  amount: number;
+  views: number;
+  adsRev: number;
+  subsRev: number;
+  customId?: string;
+}
+
+export interface CountryShare {
+  code: string;
+  rev: number;
+}
+
+export interface Creator {
+  id: number;
+  name: string;
+  songsCount: number;
+  views: number;
+  totalRoyalty: number;
+  netRoyalty: number;
+  adsRev: number;
+  subsRev: number;
+  platformShares: number[]; // [YouTube Ads %, YouTube Subs %]
+  youtubeBreakdown: {
+    adsPct: number;
+    subsPct: number;
+    adsRev: number;
+    subsRev: number;
+  };
+  status: 'Dibayar' | 'Menunggu' | 'Perlu dicek';
+  isRealStatement: boolean;
+  songsList: SongItem[];
+  topCountries: CountryShare[];
+}
+
+export const PLATFORMS = [
+  'YouTube Ads (Iklan)',
+  'YouTube Subscription (Premium/Music)',
+] as const;
+
+export const PLATFORM_COLORS = [
+  '#EF4444', // YouTube Red
+  '#3B82F6', // Blue
+] as const;
+
+export const REKAP_DATA = {
+  "title": "DISTRIBUSI YOUTUBE",
+  "period": "Mei 2026",
+  "vendor": "KELOLA KARYA INDONESIA",
+  "grandTotal": 1156701.27,
+  "alfaShare": 173505.19,
+  "eliraShare": 983196.08,
+  "pph23": 3470.1,
+  "payment": 986666.18,
+  "adsRevTotal": 856738,
+  "subsRevTotal": 299855.76,
+  "adjSubsRevTotal": 107.52,
+  "totalViews": 124251
+};
+
+export const CREATORS_DATA: Creator[] = [
+  {
+    "id": 201,
+    "name": "Immanuel Andriano Kure",
+    "songsCount": 30,
+    "views": 56639,
+    "totalRoyalty": 423433,
+    "netRoyalty": 414964,
+    "adsRev": 298538,
+    "subsRev": 124895,
+    "platformShares": [
+      71,
+      29
+    ],
+    "youtubeBreakdown": {
+      "adsPct": 71,
+      "subsPct": 29,
+      "adsRev": 298538,
+      "subsRev": 124895
+    },
+    "status": "Dibayar",
+    "isRealStatement": true,
+    "songsList": [
+      {
+        "title": "Tuhan Itu Baik",
+        "amount": 58317,
+        "views": 16728,
+        "adsRev": 38488,
+        "subsRev": 19829,
+        "customId": "L000689"
+      },
+      {
+        "title": "Mulai & Pergi",
+        "amount": 53944,
+        "views": 11359,
+        "adsRev": 41308,
+        "subsRev": 12635,
+        "customId": "L000705"
+      },
+      {
+        "title": "Cinta Salah Kasi",
+        "amount": 43789,
+        "views": 10501,
+        "adsRev": 28280,
+        "subsRev": 15509,
+        "customId": "L000706"
+      },
+      {
+        "title": "Dia",
+        "amount": 42712,
+        "views": 7793,
+        "adsRev": 26282,
+        "subsRev": 16430,
+        "customId": "L000702"
+      },
+      {
+        "title": "Tanpa Jalan Pulang",
+        "amount": 42457,
+        "views": 5494,
+        "adsRev": 29967,
+        "subsRev": 12490,
+        "customId": "L000701"
+      },
+      {
+        "title": "Desember Lalu (Lofi)",
+        "amount": 14922,
+        "views": 163,
+        "adsRev": 8254,
+        "subsRev": 6668,
+        "customId": "L000718"
+      },
+      {
+        "title": "Tiba Tiba Hilang",
+        "amount": 14426,
+        "views": 595,
+        "adsRev": 10231,
+        "subsRev": 4195,
+        "customId": "L000704"
+      },
+      {
+        "title": "Good Time",
+        "amount": 14364,
+        "views": 424,
+        "adsRev": 10380,
+        "subsRev": 3983,
+        "customId": "L000710"
+      },
+      {
+        "title": "Terlanjur Ada",
+        "amount": 12318,
+        "views": 691,
+        "adsRev": 10062,
+        "subsRev": 2256,
+        "customId": "L000703"
+      },
+      {
+        "title": "Angela",
+        "amount": 12077,
+        "views": 228,
+        "adsRev": 8528,
+        "subsRev": 3549,
+        "customId": "L000696"
+      },
+      {
+        "title": "Bawa De Jauh",
+        "amount": 11470,
+        "views": 593,
+        "adsRev": 9159,
+        "subsRev": 2311,
+        "customId": "L000700"
+      },
+      {
+        "title": "Izinkan Aku Memujimu",
+        "amount": 11204,
+        "views": 257,
+        "adsRev": 8554,
+        "subsRev": 2650,
+        "customId": "L000694"
+      },
+      {
+        "title": "Desember Lalu",
+        "amount": 10932,
+        "views": 130,
+        "adsRev": 9387,
+        "subsRev": 1545,
+        "customId": "L000719"
+      },
+      {
+        "title": "Sempurna",
+        "amount": 10814,
+        "views": 283,
+        "adsRev": 7883,
+        "subsRev": 2931,
+        "customId": "L000698"
+      },
+      {
+        "title": "Hilang",
+        "amount": 8640,
+        "views": 124,
+        "adsRev": 6818,
+        "subsRev": 1821,
+        "customId": "L000695"
+      },
+      {
+        "title": "Sore Itu",
+        "amount": 8088,
+        "views": 367,
+        "adsRev": 6476,
+        "subsRev": 1611,
+        "customId": "L000692"
+      },
+      {
+        "title": "Tuhan Besertamu",
+        "amount": 7770,
+        "views": 252,
+        "adsRev": 6618,
+        "subsRev": 1152,
+        "customId": "L000690"
+      },
+      {
+        "title": "Di Sebelah Dia",
+        "amount": 6846,
+        "views": 75,
+        "adsRev": 5351,
+        "subsRev": 1495,
+        "customId": "L000712"
+      },
+      {
+        "title": "8 Tahun",
+        "amount": 6823,
+        "views": 110,
+        "adsRev": 5026,
+        "subsRev": 1797,
+        "customId": "L000697"
+      },
+      {
+        "title": "Posisi",
+        "amount": 6555,
+        "views": 96,
+        "adsRev": 4294,
+        "subsRev": 2262,
+        "customId": "L000693"
+      },
+      {
+        "title": "Lelah Menunggu (Lofi)",
+        "amount": 5345,
+        "views": 72,
+        "adsRev": 3548,
+        "subsRev": 1797,
+        "customId": "L000707"
+      },
+      {
+        "title": "Your Smile",
+        "amount": 5033,
+        "views": 130,
+        "adsRev": 3549,
+        "subsRev": 1484,
+        "customId": "L000708"
+      },
+      {
+        "title": "Nyanyikan Mazmur Yang Terindah",
+        "amount": 4717,
+        "views": 96,
+        "adsRev": 3898,
+        "subsRev": 819,
+        "customId": "L000691"
+      },
+      {
+        "title": "Senja Dan Rumah",
+        "amount": 3191,
+        "views": 39,
+        "adsRev": 2221,
+        "subsRev": 970,
+        "customId": "L000713"
+      },
+      {
+        "title": "Peluk Dari Jauh",
+        "amount": 3171,
+        "views": 17,
+        "adsRev": 2185,
+        "subsRev": 985,
+        "customId": "L000715"
+      },
+      {
+        "title": "Separuh Hati",
+        "amount": 2048,
+        "views": 14,
+        "adsRev": 1272,
+        "subsRev": 775,
+        "customId": "L000717"
+      },
+      {
+        "title": "Tak Lagi Ada",
+        "amount": 474,
+        "views": 3,
+        "adsRev": 0,
+        "subsRev": 474,
+        "customId": "L000716"
+      },
+      {
+        "title": "Tunggu Kaka Datang (Lofi)",
+        "amount": 446,
+        "views": 2,
+        "adsRev": 212,
+        "subsRev": 234,
+        "customId": "L000709"
+      },
+      {
+        "title": "Maaf",
+        "amount": 305,
+        "views": 2,
+        "adsRev": 305,
+        "subsRev": 0,
+        "customId": "L000722"
+      },
+      {
+        "title": "Terlalu Manis",
+        "amount": 236,
+        "views": 1,
+        "adsRev": 0,
+        "subsRev": 236,
+        "customId": "L000720"
+      }
+    ],
+    "topCountries": [
+      {
+        "code": "ID",
+        "rev": 155806
+      },
+      {
+        "code": "MY",
+        "rev": 86263
+      },
+      {
+        "code": "SG",
+        "rev": 22386
+      },
+      {
+        "code": "PH",
+        "rev": 16774
+      },
+      {
+        "code": "JP",
+        "rev": 14705
+      }
+    ]
+  },
+  {
+    "id": 202,
+    "name": "Herman Andrew Bong",
+    "songsCount": 198,
+    "views": 5118,
+    "totalRoyalty": 295912,
+    "netRoyalty": 289994,
+    "adsRev": 225529,
+    "subsRev": 70384,
+    "platformShares": [
+      76,
+      24
+    ],
+    "youtubeBreakdown": {
+      "adsPct": 76,
+      "subsPct": 24,
+      "adsRev": 225529,
+      "subsRev": 70384
+    },
+    "status": "Dibayar",
+    "isRealStatement": true,
+    "songsList": [
+      {
+        "title": "Menyala Queen Full",
+        "amount": 11391,
+        "views": 351,
+        "adsRev": 9316,
+        "subsRev": 2075,
+        "customId": "L000485"
+      },
+      {
+        "title": "2026 Is New 2016",
+        "amount": 11321,
+        "views": 308,
+        "adsRev": 8713,
+        "subsRev": 2607,
+        "customId": "L000636"
+      },
+      {
+        "title": "Intinya Kacamata",
+        "amount": 10296,
+        "views": 649,
+        "adsRev": 8525,
+        "subsRev": 1771,
+        "customId": "L000626"
+      },
+      {
+        "title": "Ternak Teri (Anter Anak Anter Istri)",
+        "amount": 8616,
+        "views": 257,
+        "adsRev": 5335,
+        "subsRev": 3281,
+        "customId": "L000592"
+      },
+      {
+        "title": "Aerobik Asik",
+        "amount": 6510,
+        "views": 254,
+        "adsRev": 5975,
+        "subsRev": 535,
+        "customId": "L000296"
+      },
+      {
+        "title": "FYP Di 2026",
+        "amount": 6282,
+        "views": 183,
+        "adsRev": 5488,
+        "subsRev": 793,
+        "customId": "L000598"
+      },
+      {
+        "title": "Aku Ini CEO",
+        "amount": 5960,
+        "views": 97,
+        "adsRev": 5230,
+        "subsRev": 730,
+        "customId": "L000642"
+      },
+      {
+        "title": "Semakin Menyala Core",
+        "amount": 5926,
+        "views": 471,
+        "adsRev": 4504,
+        "subsRev": 1422,
+        "customId": "L000595"
+      },
+      {
+        "title": "Mandi Junub",
+        "amount": 5867,
+        "views": 108,
+        "adsRev": 3861,
+        "subsRev": 2006,
+        "customId": "L000468"
+      },
+      {
+        "title": "Pasar Malam Full Bass",
+        "amount": 5603,
+        "views": 68,
+        "adsRev": 4875,
+        "subsRev": 728,
+        "customId": "L000041"
+      },
+      {
+        "title": "Wishlist 2026",
+        "amount": 5402,
+        "views": 69,
+        "adsRev": 4158,
+        "subsRev": 1244,
+        "customId": "L000529"
+      },
+      {
+        "title": "Menyala Abangku",
+        "amount": 5152,
+        "views": 49,
+        "adsRev": 4439,
+        "subsRev": 713,
+        "customId": "L000477"
+      },
+      {
+        "title": "Monitor Ketuaaa!",
+        "amount": 4830,
+        "views": 53,
+        "adsRev": 3876,
+        "subsRev": 954,
+        "customId": "L000466"
+      },
+      {
+        "title": "Jealousy Dance",
+        "amount": 4657,
+        "views": 34,
+        "adsRev": 3415,
+        "subsRev": 1242,
+        "customId": "L000596"
+      },
+      {
+        "title": "Bahagia Lagi Kuy",
+        "amount": 4565,
+        "views": 44,
+        "adsRev": 3832,
+        "subsRev": 733,
+        "customId": "L000623"
+      },
+      {
+        "title": "Gosip Sama Teman",
+        "amount": 4340,
+        "views": 52,
+        "adsRev": 3102,
+        "subsRev": 1238,
+        "customId": "L000604"
+      },
+      {
+        "title": "Geol Dance Trend",
+        "amount": 4157,
+        "views": 43,
+        "adsRev": 3688,
+        "subsRev": 469,
+        "customId": "L000547"
+      },
+      {
+        "title": "Sound Horeg Dance",
+        "amount": 4121,
+        "views": 57,
+        "adsRev": 3398,
+        "subsRev": 722,
+        "customId": "L000568"
+      },
+      {
+        "title": "Trompet Gacor Dance",
+        "amount": 4103,
+        "views": 145,
+        "adsRev": 2066,
+        "subsRev": 2037,
+        "customId": "L000601"
+      },
+      {
+        "title": "Lagu Ayam",
+        "amount": 3889,
+        "views": 58,
+        "adsRev": 3414,
+        "subsRev": 475,
+        "customId": "L000643"
+      },
+      {
+        "title": "Ayo Ayo Kelas",
+        "amount": 3875,
+        "views": 67,
+        "adsRev": 2813,
+        "subsRev": 1062,
+        "customId": "L000638"
+      },
+      {
+        "title": "Pria Solo",
+        "amount": 3829,
+        "views": 49,
+        "adsRev": 3102,
+        "subsRev": 727,
+        "customId": "L000564"
+      },
+      {
+        "title": "Lebaran Telah Tiba",
+        "amount": 3821,
+        "views": 100,
+        "adsRev": 3117,
+        "subsRev": 704,
+        "customId": "L000009"
+      },
+      {
+        "title": "CEO Yang Menyamar",
+        "amount": 3761,
+        "views": 38,
+        "adsRev": 2068,
+        "subsRev": 1693,
+        "customId": "L000646"
+      },
+      {
+        "title": "Fokus Diri Sendiri",
+        "amount": 3494,
+        "views": 45,
+        "adsRev": 3245,
+        "subsRev": 249,
+        "customId": "L000561"
+      },
+      {
+        "title": "Bimsalabim",
+        "amount": 3466,
+        "views": 26,
+        "adsRev": 2511,
+        "subsRev": 955,
+        "customId": "L000560"
+      },
+      {
+        "title": "Eeee Aaaa",
+        "amount": 3449,
+        "views": 21,
+        "adsRev": 2743,
+        "subsRev": 707,
+        "customId": "L000559"
+      },
+      {
+        "title": "Big Booty Bounce",
+        "amount": 3351,
+        "views": 22,
+        "adsRev": 3105,
+        "subsRev": 246,
+        "customId": "L000524"
+      },
+      {
+        "title": "Januari, J nya apa?",
+        "amount": 3345,
+        "views": 38,
+        "adsRev": 2362,
+        "subsRev": 983,
+        "customId": "L000572"
+      },
+      {
+        "title": "Satu Ditambah Satu",
+        "amount": 3188,
+        "views": 31,
+        "adsRev": 2211,
+        "subsRev": 977,
+        "customId": "L000490"
+      },
+      {
+        "title": "Janda Pakai Daster",
+        "amount": 3103,
+        "views": 27,
+        "adsRev": 3103,
+        "subsRev": 0,
+        "customId": "L000467"
+      },
+      {
+        "title": "Tanteholic",
+        "amount": 3071,
+        "views": 26,
+        "adsRev": 2357,
+        "subsRev": 714,
+        "customId": "L000551"
+      },
+      {
+        "title": "DJ Tante Cubit Aku Dong",
+        "amount": 3033,
+        "views": 31,
+        "adsRev": 2800,
+        "subsRev": 233,
+        "customId": "L000535"
+      },
+      {
+        "title": "Trend Terbaru 2026",
+        "amount": 2998,
+        "views": 48,
+        "adsRev": 2510,
+        "subsRev": 488,
+        "customId": "L000597"
+      },
+      {
+        "title": "Cewek Pake Wispie",
+        "amount": 2932,
+        "views": 20,
+        "adsRev": 2225,
+        "subsRev": 706,
+        "customId": "L000503"
+      },
+      {
+        "title": "Adalah Pokoknya",
+        "amount": 2837,
+        "views": 22,
+        "adsRev": 2365,
+        "subsRev": 472,
+        "customId": "L000553"
+      },
+      {
+        "title": "Ya Allah Lindungi Bilqis",
+        "amount": 2836,
+        "views": 30,
+        "adsRev": 2126,
+        "subsRev": 710,
+        "customId": "L000518"
+      },
+      {
+        "title": "Jangan Lagi Lagi",
+        "amount": 2812,
+        "views": 27,
+        "adsRev": 2081,
+        "subsRev": 732,
+        "customId": "L000633"
+      },
+      {
+        "title": "Hidupmu Marah Mulu",
+        "amount": 2787,
+        "views": 27,
+        "adsRev": 2067,
+        "subsRev": 720,
+        "customId": "L000563"
+      },
+      {
+        "title": "Senggol Dong",
+        "amount": 2687,
+        "views": 17,
+        "adsRev": 2216,
+        "subsRev": 471,
+        "customId": "L000476"
+      },
+      {
+        "title": "Su Bosan",
+        "amount": 2681,
+        "views": 21,
+        "adsRev": 2211,
+        "subsRev": 470,
+        "customId": "L000624"
+      },
+      {
+        "title": "Kapitil",
+        "amount": 2571,
+        "views": 19,
+        "adsRev": 1625,
+        "subsRev": 946,
+        "customId": "L000584"
+      },
+      {
+        "title": "Cipa Core",
+        "amount": 2412,
+        "views": 20,
+        "adsRev": 1921,
+        "subsRev": 491,
+        "customId": "L000640"
+      },
+      {
+        "title": "Lagu Kucing",
+        "amount": 2390,
+        "views": 152,
+        "adsRev": 1922,
+        "subsRev": 468,
+        "customId": "L000631"
+      },
+      {
+        "title": "Tahun Baru Awal Baru",
+        "amount": 2253,
+        "views": 29,
+        "adsRev": 1031,
+        "subsRev": 1222,
+        "customId": "L000549"
+      },
+      {
+        "title": "CEO Yang Menyamar Jadi Kodok",
+        "amount": 2156,
+        "views": 24,
+        "adsRev": 1916,
+        "subsRev": 240,
+        "customId": "L000651"
+      },
+      {
+        "title": "Desember, D nya Apa?",
+        "amount": 2155,
+        "views": 19,
+        "adsRev": 1922,
+        "subsRev": 233,
+        "customId": "L000489"
+      },
+      {
+        "title": "Mamamia Lezatos",
+        "amount": 2119,
+        "views": 19,
+        "adsRev": 1633,
+        "subsRev": 486,
+        "customId": "L000583"
+      },
+      {
+        "title": "Ddu Du Du",
+        "amount": 1975,
+        "views": 11,
+        "adsRev": 1034,
+        "subsRev": 941,
+        "customId": "L000565"
+      },
+      {
+        "title": "Dugem Remang Remang",
+        "amount": 1955,
+        "views": 13,
+        "adsRev": 1487,
+        "subsRev": 469,
+        "customId": "L000504"
+      },
+      {
+        "title": "Ride The Moment",
+        "amount": 1930,
+        "views": 13,
+        "adsRev": 1930,
+        "subsRev": 0,
+        "customId": "L000120"
+      },
+      {
+        "title": "Bedug Yang Dinanti",
+        "amount": 1915,
+        "views": 15,
+        "adsRev": 1915,
+        "subsRev": 0,
+        "customId": "L000005"
+      },
+      {
+        "title": "Lagu Anjing",
+        "amount": 1860,
+        "views": 17,
+        "adsRev": 1624,
+        "subsRev": 236,
+        "customId": "L000634"
+      },
+      {
+        "title": "Tahun Baru Lagi",
+        "amount": 1803,
+        "views": 14,
+        "adsRev": 1330,
+        "subsRev": 473,
+        "customId": "L000473"
+      },
+      {
+        "title": "Gosip",
+        "amount": 1725,
+        "views": 16,
+        "adsRev": 1487,
+        "subsRev": 238,
+        "customId": "L000585"
+      },
+      {
+        "title": "Lapor Pak!",
+        "amount": 1722,
+        "views": 28,
+        "adsRev": 1489,
+        "subsRev": 233,
+        "customId": "L000461"
+      },
+      {
+        "title": "Mulut Berbisa",
+        "amount": 1668,
+        "views": 13,
+        "adsRev": 1187,
+        "subsRev": 481,
+        "customId": "L000040"
+      },
+      {
+        "title": "Kasi Paham Bos",
+        "amount": 1651,
+        "views": 13,
+        "adsRev": 1178,
+        "subsRev": 472,
+        "customId": "L000600"
+      },
+      {
+        "title": "Malam Jumat",
+        "amount": 1435,
+        "views": 9,
+        "adsRev": 1179,
+        "subsRev": 256,
+        "customId": "L000557"
+      },
+      {
+        "title": "Lomba Renang",
+        "amount": 1417,
+        "views": 10,
+        "adsRev": 1183,
+        "subsRev": 233,
+        "customId": "L000620"
+      },
+      {
+        "title": "Waktunya Berbuka",
+        "amount": 1414,
+        "views": 10,
+        "adsRev": 1179,
+        "subsRev": 235,
+        "customId": "L000003"
+      },
+      {
+        "title": "Kita Tutup Tahun Ini Dengan Single Era",
+        "amount": 1389,
+        "views": 10,
+        "adsRev": 443,
+        "subsRev": 947,
+        "customId": "L000562"
+      },
+      {
+        "title": "Sedia Payung Sebelum Hujan",
+        "amount": 1357,
+        "views": 11,
+        "adsRev": 884,
+        "subsRev": 473,
+        "customId": "L000522"
+      },
+      {
+        "title": "Ketawa Viral",
+        "amount": 1337,
+        "views": 11,
+        "adsRev": 1337,
+        "subsRev": 0,
+        "customId": "L000594"
+      },
+      {
+        "title": "Kacau",
+        "amount": 1329,
+        "views": 11,
+        "adsRev": 1329,
+        "subsRev": 0,
+        "customId": "L000026"
+      },
+      {
+        "title": "Hari Kemenangan",
+        "amount": 1326,
+        "views": 11,
+        "adsRev": 1326,
+        "subsRev": 0,
+        "customId": "L000008"
+      },
+      {
+        "title": "Pusing Kepalaku",
+        "amount": 1326,
+        "views": 9,
+        "adsRev": 1326,
+        "subsRev": 0,
+        "customId": "L000540"
+      },
+      {
+        "title": "Jangan Tunggu Lama",
+        "amount": 1274,
+        "views": 10,
+        "adsRev": 1039,
+        "subsRev": 235,
+        "customId": "L000543"
+      },
+      {
+        "title": "Anak Yang Lagi Viral",
+        "amount": 1273,
+        "views": 8,
+        "adsRev": 1035,
+        "subsRev": 238,
+        "customId": "L000603"
+      },
+      {
+        "title": "Heartless Era",
+        "amount": 1272,
+        "views": 8,
+        "adsRev": 1035,
+        "subsRev": 238,
+        "customId": "L000582"
+      },
+      {
+        "title": "Abang Sayang",
+        "amount": 1266,
+        "views": 8,
+        "adsRev": 1033,
+        "subsRev": 233,
+        "customId": "L000030"
+      },
+      {
+        "title": "Peregangan 2026",
+        "amount": 1266,
+        "views": 6,
+        "adsRev": 295,
+        "subsRev": 971,
+        "customId": "L000573"
+      },
+      {
+        "title": "DJ Meow Miau Miaw",
+        "amount": 1223,
+        "views": 62,
+        "adsRev": 738,
+        "subsRev": 485,
+        "customId": "L000454"
+      },
+      {
+        "title": "Happy Ramadhan",
+        "amount": 1140,
+        "views": 9,
+        "adsRev": 884,
+        "subsRev": 256,
+        "customId": "L000006"
+      },
+      {
+        "title": "Goyang Funky",
+        "amount": 1120,
+        "views": 9,
+        "adsRev": 887,
+        "subsRev": 233,
+        "customId": "L000036"
+      },
+      {
+        "title": "Pose Bahagia",
+        "amount": 1069,
+        "views": 6,
+        "adsRev": 597,
+        "subsRev": 472,
+        "customId": "L000530"
+      },
+      {
+        "title": "Velocity Trend",
+        "amount": 1031,
+        "views": 7,
+        "adsRev": 1031,
+        "subsRev": 0,
+        "customId": "L000501"
+      },
+      {
+        "title": "Lamunan Asmara",
+        "amount": 974,
+        "views": 29,
+        "adsRev": 739,
+        "subsRev": 235,
+        "customId": "L000070"
+      },
+      {
+        "title": "Susu Sehat",
+        "amount": 972,
+        "views": 6,
+        "adsRev": 737,
+        "subsRev": 235,
+        "customId": "L000617"
+      },
+      {
+        "title": "Ada Lah Pokoknya",
+        "amount": 970,
+        "views": 6,
+        "adsRev": 737,
+        "subsRev": 233,
+        "customId": "L000542"
+      },
+      {
+        "title": "Oi Oi Oi",
+        "amount": 917,
+        "views": 6,
+        "adsRev": 443,
+        "subsRev": 473,
+        "customId": "L000571"
+      },
+      {
+        "title": "Ramadan Telah Tiba",
+        "amount": 915,
+        "views": 5,
+        "adsRev": 442,
+        "subsRev": 473,
+        "customId": "L000647"
+      },
+      {
+        "title": "Yang Waras",
+        "amount": 915,
+        "views": 5,
+        "adsRev": 442,
+        "subsRev": 473,
+        "customId": "L000645"
+      },
+      {
+        "title": "Malam Kemesraan",
+        "amount": 884,
+        "views": 19,
+        "adsRev": 884,
+        "subsRev": 0,
+        "customId": "L000039"
+      },
+      {
+        "title": "Bjir",
+        "amount": 832,
+        "views": 5,
+        "adsRev": 590,
+        "subsRev": 242,
+        "customId": "L000644"
+      },
+      {
+        "title": "My 2026 Effect",
+        "amount": 827,
+        "views": 6,
+        "adsRev": 589,
+        "subsRev": 238,
+        "customId": "L000639"
+      },
+      {
+        "title": "1234 Dance",
+        "amount": 826,
+        "views": 7,
+        "adsRev": 590,
+        "subsRev": 236,
+        "customId": "L000555"
+      },
+      {
+        "title": "Lagu Tante",
+        "amount": 824,
+        "views": 5,
+        "adsRev": 591,
+        "subsRev": 233,
+        "customId": "L000622"
+      },
+      {
+        "title": "Selingkuh Sih",
+        "amount": 772,
+        "views": 5,
+        "adsRev": 296,
+        "subsRev": 476,
+        "customId": "L000539"
+      },
+      {
+        "title": "Mie Ciot Ciot",
+        "amount": 771,
+        "views": 4,
+        "adsRev": 771,
+        "subsRev": 0,
+        "customId": "L000618"
+      },
+      {
+        "title": "Neon Paradise",
+        "amount": 771,
+        "views": 6,
+        "adsRev": 771,
+        "subsRev": 0,
+        "customId": "L000179"
+      },
+      {
+        "title": "Cari Duit Gini Amat",
+        "amount": 764,
+        "views": 4,
+        "adsRev": 296,
+        "subsRev": 469,
+        "customId": "L000510"
+      },
+      {
+        "title": "Asupan Milen",
+        "amount": 684,
+        "views": 6,
+        "adsRev": 442,
+        "subsRev": 242,
+        "customId": "L000593"
+      },
+      {
+        "title": "Until The Lights Die",
+        "amount": 680,
+        "views": 4,
+        "adsRev": 442,
+        "subsRev": 238,
+        "customId": "L000188"
+      },
+      {
+        "title": "Kembang Malam",
+        "amount": 679,
+        "views": 7,
+        "adsRev": 442,
+        "subsRev": 237,
+        "customId": "L000066"
+      },
+      {
+        "title": "Terompet Bergoyang",
+        "amount": 678,
+        "views": 6,
+        "adsRev": 442,
+        "subsRev": 236,
+        "customId": "L000079"
+      },
+      {
+        "title": "Teman Luar Negeri",
+        "amount": 676,
+        "views": 4,
+        "adsRev": 443,
+        "subsRev": 233,
+        "customId": "L000599"
+      },
+      {
+        "title": "Negara Konoha",
+        "amount": 676,
+        "views": 3,
+        "adsRev": 443,
+        "subsRev": 233,
+        "customId": "L000527"
+      },
+      {
+        "title": "Kegiatan Istri",
+        "amount": 676,
+        "views": 5,
+        "adsRev": 442,
+        "subsRev": 234,
+        "customId": "L000606"
+      },
+      {
+        "title": "Bocil Core",
+        "amount": 647,
+        "views": 3,
+        "adsRev": 173,
+        "subsRev": 475,
+        "customId": "L000641"
+      },
+      {
+        "title": "Perempuan Menari",
+        "amount": 616,
+        "views": 3,
+        "adsRev": 147,
+        "subsRev": 469,
+        "customId": "L000605"
+      },
+      {
+        "title": "Organ Tunggal Asik",
+        "amount": 590,
+        "views": 4,
+        "adsRev": 590,
+        "subsRev": 0,
+        "customId": "L000305"
+      },
+      {
+        "title": "Takbir Menggema",
+        "amount": 590,
+        "views": 14,
+        "adsRev": 590,
+        "subsRev": 0,
+        "customId": "L000010"
+      },
+      {
+        "title": "Maaf Maafan",
+        "amount": 589,
+        "views": 5,
+        "adsRev": 589,
+        "subsRev": 0,
+        "customId": "L000016"
+      },
+      {
+        "title": "Capek Tapi Hepi",
+        "amount": 589,
+        "views": 6,
+        "adsRev": 589,
+        "subsRev": 0,
+        "customId": "L000298"
+      },
+      {
+        "title": "Gen Z Marketing",
+        "amount": 589,
+        "views": 4,
+        "adsRev": 589,
+        "subsRev": 0,
+        "customId": "L000570"
+      },
+      {
+        "title": "Water Of Life",
+        "amount": 532,
+        "views": 4,
+        "adsRev": 295,
+        "subsRev": 237,
+        "customId": "L000426"
+      },
+      {
+        "title": "Teman Semalam",
+        "amount": 530,
+        "views": 4,
+        "adsRev": 295,
+        "subsRev": 235,
+        "customId": "L000078"
+      },
+      {
+        "title": "Koplo Dance",
+        "amount": 529,
+        "views": 4,
+        "adsRev": 295,
+        "subsRev": 235,
+        "customId": "L000591"
+      },
+      {
+        "title": "Go Go Go",
+        "amount": 528,
+        "views": 3,
+        "adsRev": 295,
+        "subsRev": 233,
+        "customId": "L000300"
+      },
+      {
+        "title": "Single Is Fun",
+        "amount": 528,
+        "views": 3,
+        "adsRev": 295,
+        "subsRev": 233,
+        "customId": "L000621"
+      },
+      {
+        "title": "Waktunya Sekolah",
+        "amount": 528,
+        "views": 3,
+        "adsRev": 295,
+        "subsRev": 233,
+        "customId": "L000567"
+      },
+      {
+        "title": "Pinjol",
+        "amount": 528,
+        "views": 3,
+        "adsRev": 295,
+        "subsRev": 233,
+        "customId": "L000480"
+      },
+      {
+        "title": "Beneath The Silent Sky",
+        "amount": 494,
+        "views": 3,
+        "adsRev": 0,
+        "subsRev": 494,
+        "customId": "L000211"
+      },
+      {
+        "title": "Adek Genit",
+        "amount": 444,
+        "views": 3,
+        "adsRev": 444,
+        "subsRev": 0,
+        "customId": "L000031"
+      },
+      {
+        "title": "Malam Seribu Bulan",
+        "amount": 442,
+        "views": 3,
+        "adsRev": 442,
+        "subsRev": 0,
+        "customId": "L000002"
+      },
+      {
+        "title": "Ikan Pesut Dance",
+        "amount": 442,
+        "views": 9,
+        "adsRev": 442,
+        "subsRev": 0,
+        "customId": "L000657"
+      },
+      {
+        "title": "Go Padel!!",
+        "amount": 442,
+        "views": 7,
+        "adsRev": 442,
+        "subsRev": 0,
+        "customId": "L000457"
+      },
+      {
+        "title": "Idul Fitri Indah",
+        "amount": 442,
+        "views": 3,
+        "adsRev": 442,
+        "subsRev": 0,
+        "customId": "L000012"
+      },
+      {
+        "title": "Intinya Kacamata Ramadan",
+        "amount": 442,
+        "views": 4,
+        "adsRev": 442,
+        "subsRev": 0,
+        "customId": "L000650"
+      },
+      {
+        "title": "Fomo",
+        "amount": 442,
+        "views": 3,
+        "adsRev": 442,
+        "subsRev": 0,
+        "customId": "L000632"
+      },
+      {
+        "title": "Balap Liar",
+        "amount": 442,
+        "views": 4,
+        "adsRev": 442,
+        "subsRev": 0,
+        "customId": "L000032"
+      },
+      {
+        "title": "Sat Set!",
+        "amount": 442,
+        "views": 3,
+        "adsRev": 442,
+        "subsRev": 0,
+        "customId": "L000498"
+      },
+      {
+        "title": "Yang Ditunggu",
+        "amount": 442,
+        "views": 3,
+        "adsRev": 442,
+        "subsRev": 0,
+        "customId": "L000029"
+      },
+      {
+        "title": "Hepi Hepi",
+        "amount": 384,
+        "views": 2,
+        "adsRev": 147,
+        "subsRev": 237,
+        "customId": "L000023"
+      },
+      {
+        "title": "Koplo Kosta",
+        "amount": 382,
+        "views": 3,
+        "adsRev": 147,
+        "subsRev": 235,
+        "customId": "L000068"
+      },
+      {
+        "title": "Bacot",
+        "amount": 382,
+        "views": 4,
+        "adsRev": 147,
+        "subsRev": 235,
+        "customId": "L000500"
+      },
+      {
+        "title": "Dari India",
+        "amount": 381,
+        "views": 2,
+        "adsRev": 147,
+        "subsRev": 233,
+        "customId": "L000021"
+      },
+      {
+        "title": "Drag Race",
+        "amount": 319,
+        "views": 7,
+        "adsRev": 0,
+        "subsRev": 319,
+        "customId": "L000034"
+      },
+      {
+        "title": "Siap Goyang",
+        "amount": 297,
+        "views": 2,
+        "adsRev": 297,
+        "subsRev": 0,
+        "customId": "L000496"
+      },
+      {
+        "title": "Puasa Penuh Berkah",
+        "amount": 295,
+        "views": 3,
+        "adsRev": 295,
+        "subsRev": 0,
+        "customId": "L000001"
+      },
+      {
+        "title": "Sahur Asik",
+        "amount": 295,
+        "views": 2,
+        "adsRev": 295,
+        "subsRev": 0,
+        "customId": "L000004"
+      },
+      {
+        "title": "Brokenheart Sunday",
+        "amount": 295,
+        "views": 2,
+        "adsRev": 295,
+        "subsRev": 0,
+        "customId": "L000420"
+      },
+      {
+        "title": "Run To Me",
+        "amount": 295,
+        "views": 2,
+        "adsRev": 295,
+        "subsRev": 0,
+        "customId": "L000424"
+      },
+      {
+        "title": "Kumpul Keluarga",
+        "amount": 295,
+        "views": 2,
+        "adsRev": 295,
+        "subsRev": 0,
+        "customId": "L000014"
+      },
+      {
+        "title": "Libur Tahun Baru",
+        "amount": 295,
+        "views": 2,
+        "adsRev": 295,
+        "subsRev": 0,
+        "customId": "L000492"
+      },
+      {
+        "title": "Sinyal Kampret",
+        "amount": 295,
+        "views": 2,
+        "adsRev": 295,
+        "subsRev": 0,
+        "customId": "L000590"
+      },
+      {
+        "title": "Gelisah (Geli Geli Sah)",
+        "amount": 295,
+        "views": 2,
+        "adsRev": 295,
+        "subsRev": 0,
+        "customId": "L000511"
+      },
+      {
+        "title": "Judol",
+        "amount": 295,
+        "views": 2,
+        "adsRev": 295,
+        "subsRev": 0,
+        "customId": "L000479"
+      },
+      {
+        "title": "Cosmic Confetti",
+        "amount": 295,
+        "views": 2,
+        "adsRev": 295,
+        "subsRev": 0,
+        "customId": "L000158"
+      },
+      {
+        "title": "Game Time Mood",
+        "amount": 277,
+        "views": 6,
+        "adsRev": 0,
+        "subsRev": 277,
+        "customId": "L000442"
+      },
+      {
+        "title": "Whisper Of The Down",
+        "amount": 255,
+        "views": 2,
+        "adsRev": 0,
+        "subsRev": 255,
+        "customId": "L000220"
+      },
+      {
+        "title": "Distant Shores",
+        "amount": 255,
+        "views": 2,
+        "adsRev": 0,
+        "subsRev": 255,
+        "customId": "L000212"
+      },
+      {
+        "title": "Fading Horizon",
+        "amount": 255,
+        "views": 2,
+        "adsRev": 0,
+        "subsRev": 255,
+        "customId": "L000214"
+      },
+      {
+        "title": "Feel The Drop",
+        "amount": 253,
+        "views": 1,
+        "adsRev": 0,
+        "subsRev": 253,
+        "customId": "L000094"
+      },
+      {
+        "title": "Still Waters",
+        "amount": 243,
+        "views": 1,
+        "adsRev": 0,
+        "subsRev": 243,
+        "customId": "L000218"
+      },
+      {
+        "title": "Echoes In The Mist",
+        "amount": 243,
+        "views": 1,
+        "adsRev": 0,
+        "subsRev": 243,
+        "customId": "L000213"
+      },
+      {
+        "title": "Raindrop Waltz",
+        "amount": 243,
+        "views": 1,
+        "adsRev": 0,
+        "subsRev": 243,
+        "customId": "L000216"
+      },
+      {
+        "title": "Sleeping Meadow",
+        "amount": 243,
+        "views": 1,
+        "adsRev": 0,
+        "subsRev": 243,
+        "customId": "L000217"
+      },
+      {
+        "title": "Letters From The Wind",
+        "amount": 243,
+        "views": 1,
+        "adsRev": 0,
+        "subsRev": 243,
+        "customId": "L000215"
+      },
+      {
+        "title": "Through The Fog",
+        "amount": 243,
+        "views": 1,
+        "adsRev": 0,
+        "subsRev": 243,
+        "customId": "L000219"
+      },
+      {
+        "title": "Enyak Babeh",
+        "amount": 240,
+        "views": 1,
+        "adsRev": 0,
+        "subsRev": 240,
+        "customId": "L000047"
+      },
+      {
+        "title": "At Least",
+        "amount": 240,
+        "views": 1,
+        "adsRev": 0,
+        "subsRev": 240,
+        "customId": "L000554"
+      },
+      {
+        "title": "Welcome January",
+        "amount": 237,
+        "views": 1,
+        "adsRev": 0,
+        "subsRev": 237,
+        "customId": "L000521"
+      },
+      {
+        "title": "Selir Irama",
+        "amount": 235,
+        "views": 2,
+        "adsRev": 0,
+        "subsRev": 235,
+        "customId": "L000077"
+      },
+      {
+        "title": "Paranoid",
+        "amount": 235,
+        "views": 2,
+        "adsRev": 0,
+        "subsRev": 235,
+        "customId": "L000073"
+      },
+      {
+        "title": "Saung Mempesona",
+        "amount": 235,
+        "views": 2,
+        "adsRev": 0,
+        "subsRev": 235,
+        "customId": "L000076"
+      },
+      {
+        "title": "Malam Penuh Asmara",
+        "amount": 235,
+        "views": 2,
+        "adsRev": 0,
+        "subsRev": 235,
+        "customId": "L000072"
+      },
+      {
+        "title": "Lini Masa",
+        "amount": 235,
+        "views": 2,
+        "adsRev": 0,
+        "subsRev": 235,
+        "customId": "L000071"
+      },
+      {
+        "title": "Dancing In Static",
+        "amount": 234,
+        "views": 1,
+        "adsRev": 0,
+        "subsRev": 234,
+        "customId": "L000088"
+      },
+      {
+        "title": "DC Nagih Utang",
+        "amount": 233,
+        "views": 1,
+        "adsRev": 0,
+        "subsRev": 233,
+        "customId": "L000505"
+      },
+      {
+        "title": "Teman Goyang",
+        "amount": 233,
+        "views": 1,
+        "adsRev": 0,
+        "subsRev": 233,
+        "customId": "L000044"
+      },
+      {
+        "title": "Berduaan",
+        "amount": 233,
+        "views": 1,
+        "adsRev": 0,
+        "subsRev": 233,
+        "customId": "L000297"
+      },
+      {
+        "title": "Ngelamunin Kamu",
+        "amount": 233,
+        "views": 1,
+        "adsRev": 0,
+        "subsRev": 233,
+        "customId": "L000340"
+      },
+      {
+        "title": "Salah Hyper",
+        "amount": 233,
+        "views": 1,
+        "adsRev": 0,
+        "subsRev": 233,
+        "customId": "L000581"
+      },
+      {
+        "title": "Rindu",
+        "amount": 233,
+        "views": 1,
+        "adsRev": 0,
+        "subsRev": 233,
+        "customId": "L000075"
+      },
+      {
+        "title": "Patroli Dansa",
+        "amount": 233,
+        "views": 1,
+        "adsRev": 0,
+        "subsRev": 233,
+        "customId": "L000074"
+      },
+      {
+        "title": "Goyangin Bor",
+        "amount": 233,
+        "views": 1,
+        "adsRev": 0,
+        "subsRev": 233,
+        "customId": "L000301"
+      },
+      {
+        "title": "Tung Tung",
+        "amount": 233,
+        "views": 1,
+        "adsRev": 0,
+        "subsRev": 233,
+        "customId": "L000080"
+      },
+      {
+        "title": "Kisah Semalam",
+        "amount": 233,
+        "views": 1,
+        "adsRev": 0,
+        "subsRev": 233,
+        "customId": "L000067"
+      },
+      {
+        "title": "We Can Do It",
+        "amount": 233,
+        "views": 1,
+        "adsRev": 0,
+        "subsRev": 233,
+        "customId": "L000427"
+      },
+      {
+        "title": "Legendary Hills",
+        "amount": 156,
+        "views": 1,
+        "adsRev": 156,
+        "subsRev": 0,
+        "customId": "L000415"
+      },
+      {
+        "title": "Prism Of Sound",
+        "amount": 151,
+        "views": 1,
+        "adsRev": 151,
+        "subsRev": 0,
+        "customId": "L000182"
+      },
+      {
+        "title": "Yoga Master",
+        "amount": 148,
+        "views": 1,
+        "adsRev": 148,
+        "subsRev": 0,
+        "customId": "L000429"
+      },
+      {
+        "title": "Calm Breathe",
+        "amount": 148,
+        "views": 1,
+        "adsRev": 148,
+        "subsRev": 0,
+        "customId": "L000421"
+      },
+      {
+        "title": "Funny Whistle",
+        "amount": 148,
+        "views": 1,
+        "adsRev": 148,
+        "subsRev": 0,
+        "customId": "L000455"
+      },
+      {
+        "title": "Irama Takjil",
+        "amount": 147,
+        "views": 2,
+        "adsRev": 147,
+        "subsRev": 0,
+        "customId": "L000007"
+      },
+      {
+        "title": "Fun Padel",
+        "amount": 147,
+        "views": 1,
+        "adsRev": 147,
+        "subsRev": 0,
+        "customId": "L000458"
+      },
+      {
+        "title": "Yellow Morning",
+        "amount": 147,
+        "views": 1,
+        "adsRev": 147,
+        "subsRev": 0,
+        "customId": "L000428"
+      },
+      {
+        "title": "Jangan Lemes",
+        "amount": 147,
+        "views": 1,
+        "adsRev": 147,
+        "subsRev": 0,
+        "customId": "L000332"
+      },
+      {
+        "title": "UMR Sampe Mate",
+        "amount": 147,
+        "views": 1,
+        "adsRev": 147,
+        "subsRev": 0,
+        "customId": "L000465"
+      },
+      {
+        "title": "Lumba Lumba Putih Loncat",
+        "amount": 147,
+        "views": 1,
+        "adsRev": 147,
+        "subsRev": 0,
+        "customId": "L000607"
+      },
+      {
+        "title": "River Of Fortune",
+        "amount": 147,
+        "views": 1,
+        "adsRev": 147,
+        "subsRev": 0,
+        "customId": "L000417"
+      },
+      {
+        "title": "Naik Kereta",
+        "amount": 147,
+        "views": 1,
+        "adsRev": 147,
+        "subsRev": 0,
+        "customId": "L000051"
+      },
+      {
+        "title": "Sleep Well",
+        "amount": 147,
+        "views": 1,
+        "adsRev": 147,
+        "subsRev": 0,
+        "customId": "L000392"
+      },
+      {
+        "title": "Ngana Cuan",
+        "amount": 147,
+        "views": 1,
+        "adsRev": 147,
+        "subsRev": 0,
+        "customId": "L000658"
+      },
+      {
+        "title": "Full Gas",
+        "amount": 147,
+        "views": 1,
+        "adsRev": 147,
+        "subsRev": 0,
+        "customId": "L000299"
+      },
+      {
+        "title": "Melodi Rindu",
+        "amount": 147,
+        "views": 1,
+        "adsRev": 147,
+        "subsRev": 0,
+        "customId": "L000303"
+      },
+      {
+        "title": "Cuban Skies",
+        "amount": 147,
+        "views": 1,
+        "adsRev": 147,
+        "subsRev": 0,
+        "customId": "L000104"
+      },
+      {
+        "title": "Night Bell",
+        "amount": 147,
+        "views": 1,
+        "adsRev": 147,
+        "subsRev": 0,
+        "customId": "L000399"
+      },
+      {
+        "title": "The Remedy",
+        "amount": 147,
+        "views": 2,
+        "adsRev": 147,
+        "subsRev": 0,
+        "customId": "L000425"
+      },
+      {
+        "title": "Open B.O.",
+        "amount": 147,
+        "views": 1,
+        "adsRev": 147,
+        "subsRev": 0,
+        "customId": "L000481"
+      },
+      {
+        "title": "Sadis",
+        "amount": 147,
+        "views": 1,
+        "adsRev": 147,
+        "subsRev": 0,
+        "customId": "L000027"
+      },
+      {
+        "title": "Sexiest Girl",
+        "amount": 147,
+        "views": 1,
+        "adsRev": 147,
+        "subsRev": 0,
+        "customId": "L000655"
+      },
+      {
+        "title": "Kabur Dulu",
+        "amount": 147,
+        "views": 1,
+        "adsRev": 147,
+        "subsRev": 0,
+        "customId": "L000334"
+      },
+      {
+        "title": "Mabuk Kepayang",
+        "amount": 147,
+        "views": 1,
+        "adsRev": 147,
+        "subsRev": 0,
+        "customId": "L000038"
+      },
+      {
+        "title": "Kakak Manis",
+        "amount": 147,
+        "views": 1,
+        "adsRev": 147,
+        "subsRev": 0,
+        "customId": "L000335"
+      },
+      {
+        "title": "Jet Darat",
+        "amount": 147,
+        "views": 1,
+        "adsRev": 147,
+        "subsRev": 0,
+        "customId": "L000333"
+      }
+    ],
+    "topCountries": [
+      {
+        "code": "ID",
+        "rev": 175386
+      },
+      {
+        "code": "MY",
+        "rev": 50133
+      },
+      {
+        "code": "PH",
+        "rev": 6561
+      },
+      {
+        "code": "TH",
+        "rev": 6247
+      },
+      {
+        "code": "IN",
+        "rev": 5067
+      }
+    ]
+  },
+  {
+    "id": 203,
+    "name": "Tomo Widayat",
+    "songsCount": 2,
+    "views": 39750,
+    "totalRoyalty": 119895,
+    "netRoyalty": 117497,
+    "adsRev": 102099,
+    "subsRev": 17796,
+    "platformShares": [
+      85,
+      15
+    ],
+    "youtubeBreakdown": {
+      "adsPct": 85,
+      "subsPct": 15,
+      "adsRev": 102099,
+      "subsRev": 17796
+    },
+    "status": "Dibayar",
+    "isRealStatement": true,
+    "songsList": [
+      {
+        "title": "Turah Wani",
+        "amount": 102490,
+        "views": 34584,
+        "adsRev": 88150,
+        "subsRev": 14340,
+        "customId": "L000678"
+      },
+      {
+        "title": "Turah Wani Remix",
+        "amount": 17406,
+        "views": 5166,
+        "adsRev": 13949,
+        "subsRev": 3456,
+        "customId": "L000681"
+      }
+    ],
+    "topCountries": [
+      {
+        "code": "ID",
+        "rev": 58824
+      },
+      {
+        "code": "JP",
+        "rev": 11911
+      },
+      {
+        "code": "TW",
+        "rev": 9424
+      },
+      {
+        "code": "MY",
+        "rev": 9180
+      },
+      {
+        "code": "SG",
+        "rev": 6192
+      }
+    ]
+  },
+  {
+    "id": 204,
+    "name": "Adhi Bona,Aryo Bhaskoyo,Dhandy Satria Jatmikanto,Isyuddin Abdusalam,Teguh Joyosantiko,Yusak Nugroho",
+    "songsCount": 8,
+    "views": 3066,
+    "totalRoyalty": 65554,
+    "netRoyalty": 64243,
+    "adsRev": 53932,
+    "subsRev": 11622,
+    "platformShares": [
+      82,
+      18
+    ],
+    "youtubeBreakdown": {
+      "adsPct": 82,
+      "subsPct": 18,
+      "adsRev": 53932,
+      "subsRev": 11622
+    },
+    "status": "Dibayar",
+    "isRealStatement": true,
+    "songsList": [
+      {
+        "title": "Pulih",
+        "amount": 11602,
+        "views": 984,
+        "adsRev": 10081,
+        "subsRev": 1521,
+        "customId": "L000801"
+      },
+      {
+        "title": "Bebas",
+        "amount": 10563,
+        "views": 605,
+        "adsRev": 8200,
+        "subsRev": 2364,
+        "customId": "L000806"
+      },
+      {
+        "title": "Ingar",
+        "amount": 9267,
+        "views": 356,
+        "adsRev": 7447,
+        "subsRev": 1820,
+        "customId": "L000805"
+      },
+      {
+        "title": "Kejora",
+        "amount": 9131,
+        "views": 382,
+        "adsRev": 7541,
+        "subsRev": 1590,
+        "customId": "L000803"
+      },
+      {
+        "title": "Otomat",
+        "amount": 7559,
+        "views": 342,
+        "adsRev": 6256,
+        "subsRev": 1303,
+        "customId": "L000804"
+      },
+      {
+        "title": "Tandus",
+        "amount": 6909,
+        "views": 211,
+        "adsRev": 5646,
+        "subsRev": 1263,
+        "customId": "L000799"
+      },
+      {
+        "title": "Neonatus",
+        "amount": 5336,
+        "views": 119,
+        "adsRev": 4308,
+        "subsRev": 1029,
+        "customId": "L000800"
+      },
+      {
+        "title": "Laga",
+        "amount": 5186,
+        "views": 67,
+        "adsRev": 4455,
+        "subsRev": 731,
+        "customId": "L000802"
+      }
+    ],
+    "topCountries": [
+      {
+        "code": "ID",
+        "rev": 44390
+      },
+      {
+        "code": "MY",
+        "rev": 9816
+      },
+      {
+        "code": "SG",
+        "rev": 7512
+      },
+      {
+        "code": "JP",
+        "rev": 589
+      },
+      {
+        "code": "VN",
+        "rev": 470
+      }
+    ]
+  },
+  {
+    "id": 205,
+    "name": "Dhandy Satria Jatmikanto",
+    "songsCount": 22,
+    "views": 1023,
+    "totalRoyalty": 57043,
+    "netRoyalty": 55902,
+    "adsRev": 42906,
+    "subsRev": 14136,
+    "platformShares": [
+      75,
+      25
+    ],
+    "youtubeBreakdown": {
+      "adsPct": 75,
+      "subsPct": 25,
+      "adsRev": 42906,
+      "subsRev": 14136
+    },
+    "status": "Dibayar",
+    "isRealStatement": true,
+    "songsList": [
+      {
+        "title": "Lost In The Labyrinth",
+        "amount": 12483,
+        "views": 343,
+        "adsRev": 9783,
+        "subsRev": 2699,
+        "customId": "L000760"
+      },
+      {
+        "title": "Monoculture",
+        "amount": 6989,
+        "views": 153,
+        "adsRev": 5291,
+        "subsRev": 1699,
+        "customId": "L000766"
+      },
+      {
+        "title": "Galat",
+        "amount": 6218,
+        "views": 117,
+        "adsRev": 4454,
+        "subsRev": 1763,
+        "customId": "L000812"
+      },
+      {
+        "title": "Mind's Prison",
+        "amount": 4438,
+        "views": 57,
+        "adsRev": 3714,
+        "subsRev": 724,
+        "customId": "L000764"
+      },
+      {
+        "title": "S?",
+        "amount": 4281,
+        "views": 58,
+        "adsRev": 3560,
+        "subsRev": 721,
+        "customId": "L000758"
+      },
+      {
+        "title": "Flying Colors",
+        "amount": 3351,
+        "views": 56,
+        "adsRev": 2806,
+        "subsRev": 544,
+        "customId": "L000767"
+      },
+      {
+        "title": "Utopian Rite",
+        "amount": 3248,
+        "views": 45,
+        "adsRev": 2518,
+        "subsRev": 730,
+        "customId": "L000755"
+      },
+      {
+        "title": "Waltzy Scuffle",
+        "amount": 3220,
+        "views": 23,
+        "adsRev": 1768,
+        "subsRev": 1452,
+        "customId": "L000763"
+      },
+      {
+        "title": "Sabbe Satta Bhavantu Sukhitatta",
+        "amount": 2556,
+        "views": 27,
+        "adsRev": 2084,
+        "subsRev": 472,
+        "customId": "L000757"
+      },
+      {
+        "title": "Gravity's Pull",
+        "amount": 2534,
+        "views": 22,
+        "adsRev": 2062,
+        "subsRev": 472,
+        "customId": "L000765"
+      },
+      {
+        "title": "Liquid Fire",
+        "amount": 2349,
+        "views": 21,
+        "adsRev": 1626,
+        "subsRev": 723,
+        "customId": "L000762"
+      },
+      {
+        "title": "Pohon Itu Ditebang dan Menghantuiku",
+        "amount": 914,
+        "views": 28,
+        "adsRev": 442,
+        "subsRev": 472,
+        "customId": "L000745"
+      },
+      {
+        "title": "Media Sosial dan Adam",
+        "amount": 786,
+        "views": 17,
+        "adsRev": 295,
+        "subsRev": 491,
+        "customId": "L000748"
+      },
+      {
+        "title": "ris/pe/ri/don",
+        "amount": 677,
+        "views": 5,
+        "adsRev": 442,
+        "subsRev": 235,
+        "customId": "L000749"
+      },
+      {
+        "title": "Menuju Tidur",
+        "amount": 677,
+        "views": 13,
+        "adsRev": 442,
+        "subsRev": 235,
+        "customId": "L000744"
+      },
+      {
+        "title": "Terbangun Karena Mimpi Buruk",
+        "amount": 530,
+        "views": 25,
+        "adsRev": 295,
+        "subsRev": 235,
+        "customId": "L000750"
+      },
+      {
+        "title": "Apokaliptik",
+        "amount": 528,
+        "views": 3,
+        "adsRev": 295,
+        "subsRev": 233,
+        "customId": "L000741"
+      },
+      {
+        "title": "Pahlawan dan Siluman Kucing",
+        "amount": 442,
+        "views": 3,
+        "adsRev": 442,
+        "subsRev": 0,
+        "customId": "L000747"
+      },
+      {
+        "title": "Mencari Nomor Keberuntungan",
+        "amount": 295,
+        "views": 3,
+        "adsRev": 295,
+        "subsRev": 0,
+        "customId": "L000746"
+      },
+      {
+        "title": "Megalomania",
+        "amount": 233,
+        "views": 1,
+        "adsRev": 0,
+        "subsRev": 233,
+        "customId": "L000740"
+      },
+      {
+        "title": "Berburu Atlantis",
+        "amount": 147,
+        "views": 2,
+        "adsRev": 147,
+        "subsRev": 0,
+        "customId": "L000753"
+      },
+      {
+        "title": "Rukiah Pistol Laser",
+        "amount": 147,
+        "views": 1,
+        "adsRev": 147,
+        "subsRev": 0,
+        "customId": "L000751"
+      }
+    ],
+    "topCountries": [
+      {
+        "code": "ID",
+        "rev": 44059
+      },
+      {
+        "code": "MY",
+        "rev": 2270
+      },
+      {
+        "code": "UA",
+        "rev": 1474
+      },
+      {
+        "code": "SG",
+        "rev": 1129
+      },
+      {
+        "code": "AU",
+        "rev": 908
+      }
+    ]
+  },
+  {
+    "id": 206,
+    "name": "Dhandy Satria Jatmikanto,Fadhil,Lukman Mahdiez",
+    "songsCount": 4,
+    "views": 10812,
+    "totalRoyalty": 56942,
+    "netRoyalty": 55803,
+    "adsRev": 38160,
+    "subsRev": 18782,
+    "platformShares": [
+      67,
+      33
+    ],
+    "youtubeBreakdown": {
+      "adsPct": 67,
+      "subsPct": 33,
+      "adsRev": 38160,
+      "subsRev": 18782
+    },
+    "status": "Dibayar",
+    "isRealStatement": true,
+    "songsList": [
+      {
+        "title": "Payah",
+        "amount": 20798,
+        "views": 3639,
+        "adsRev": 13787,
+        "subsRev": 7011,
+        "customId": "L000794"
+      },
+      {
+        "title": "Porak Poranda",
+        "amount": 16505,
+        "views": 5175,
+        "adsRev": 11389,
+        "subsRev": 5116,
+        "customId": "L000795"
+      },
+      {
+        "title": "Gelanggang / Kalah",
+        "amount": 10340,
+        "views": 1255,
+        "adsRev": 6676,
+        "subsRev": 3664,
+        "customId": "L000792"
+      },
+      {
+        "title": "Cinta Mana Yang Kau Bela?",
+        "amount": 9300,
+        "views": 743,
+        "adsRev": 6309,
+        "subsRev": 2992,
+        "customId": "L000796"
+      }
+    ],
+    "topCountries": [
+      {
+        "code": "ID",
+        "rev": 29874
+      },
+      {
+        "code": "JP",
+        "rev": 4885
+      },
+      {
+        "code": "MY",
+        "rev": 4211
+      },
+      {
+        "code": "SG",
+        "rev": 4143
+      },
+      {
+        "code": "FR",
+        "rev": 1460
+      }
+    ]
+  },
+  {
+    "id": 207,
+    "name": "Dhandy Satria Jatmikanto,Fadhil,Iqbal,Lukman Mahdiez,Nicola,Taksu Buana",
+    "songsCount": 3,
+    "views": 2656,
+    "totalRoyalty": 26849,
+    "netRoyalty": 26312,
+    "adsRev": 16937,
+    "subsRev": 9912,
+    "platformShares": [
+      63,
+      37
+    ],
+    "youtubeBreakdown": {
+      "adsPct": 63,
+      "subsPct": 37,
+      "adsRev": 16937,
+      "subsRev": 9912
+    },
+    "status": "Dibayar",
+    "isRealStatement": true,
+    "songsList": [
+      {
+        "title": "Kehancuran",
+        "amount": 12748,
+        "views": 1488,
+        "adsRev": 6541,
+        "subsRev": 6207,
+        "customId": "L000791"
+      },
+      {
+        "title": "Belum Waktunya - Acoustic Version",
+        "amount": 7249,
+        "views": 670,
+        "adsRev": 5552,
+        "subsRev": 1696,
+        "customId": "L000797"
+      },
+      {
+        "title": "Jadilah Bodoh!",
+        "amount": 6852,
+        "views": 498,
+        "adsRev": 4844,
+        "subsRev": 2008,
+        "customId": "L000798"
+      }
+    ],
+    "topCountries": [
+      {
+        "code": "ID",
+        "rev": 17521
+      },
+      {
+        "code": "FR",
+        "rev": 1310
+      },
+      {
+        "code": "MY",
+        "rev": 957
+      },
+      {
+        "code": "AU",
+        "rev": 761
+      },
+      {
+        "code": "ES",
+        "rev": 725
+      }
+    ]
+  },
+  {
+    "id": 208,
+    "name": "Kinanti Mayrisa Kenanga",
+    "songsCount": 4,
+    "views": 440,
+    "totalRoyalty": 22799,
+    "netRoyalty": 22343,
+    "adsRev": 18798,
+    "subsRev": 4001,
+    "platformShares": [
+      82,
+      18
+    ],
+    "youtubeBreakdown": {
+      "adsPct": 82,
+      "subsPct": 18,
+      "adsRev": 18798,
+      "subsRev": 4001
+    },
+    "status": "Dibayar",
+    "isRealStatement": true,
+    "songsList": [
+      {
+        "title": "Thank You Shalala",
+        "amount": 13882,
+        "views": 277,
+        "adsRev": 12000,
+        "subsRev": 1882,
+        "customId": "L000683"
+      },
+      {
+        "title": "Throwback",
+        "amount": 5882,
+        "views": 136,
+        "adsRev": 3998,
+        "subsRev": 1884,
+        "customId": "L000673"
+      },
+      {
+        "title": "Kepala Tiga",
+        "amount": 2888,
+        "views": 26,
+        "adsRev": 2653,
+        "subsRev": 235,
+        "customId": "L000669"
+      },
+      {
+        "title": "Worrywart",
+        "amount": 147,
+        "views": 1,
+        "adsRev": 147,
+        "subsRev": 0,
+        "customId": "L000680"
+      }
+    ],
+    "topCountries": [
+      {
+        "code": "ID",
+        "rev": 10559
+      },
+      {
+        "code": "IN",
+        "rev": 2340
+      },
+      {
+        "code": "KH",
+        "rev": 2309
+      },
+      {
+        "code": "MY",
+        "rev": 2017
+      },
+      {
+        "code": "TH",
+        "rev": 1182
+      }
+    ]
+  },
+  {
+    "id": 209,
+    "name": "Andrew Khomala,Jeremia Varrell B Jesaya Purba,Sitti Rahmadina Az Zahra Siregar,Tama Wicitra",
+    "songsCount": 3,
+    "views": 1854,
+    "totalRoyalty": 21025,
+    "netRoyalty": 20604,
+    "adsRev": 12196,
+    "subsRev": 8830,
+    "platformShares": [
+      58,
+      42
+    ],
+    "youtubeBreakdown": {
+      "adsPct": 58,
+      "subsPct": 42,
+      "adsRev": 12196,
+      "subsRev": 8830
+    },
+    "status": "Menunggu",
+    "isRealStatement": true,
+    "songsList": [
+      {
+        "title": "Masasih",
+        "amount": 18852,
+        "views": 1841,
+        "adsRev": 10723,
+        "subsRev": 8130,
+        "customId": "L000661"
+      },
+      {
+        "title": "Masasih Remix",
+        "amount": 1497,
+        "views": 9,
+        "adsRev": 1031,
+        "subsRev": 466,
+        "customId": "L000664"
+      },
+      {
+        "title": "Masasih Speed Up",
+        "amount": 675,
+        "views": 4,
+        "adsRev": 442,
+        "subsRev": 233,
+        "customId": "L000667"
+      }
+    ],
+    "topCountries": [
+      {
+        "code": "ID",
+        "rev": 9454
+      },
+      {
+        "code": "MY",
+        "rev": 4928
+      },
+      {
+        "code": "SG",
+        "rev": 1592
+      },
+      {
+        "code": "TW",
+        "rev": 630
+      },
+      {
+        "code": "IN",
+        "rev": 621
+      }
+    ]
+  },
+  {
+    "id": 210,
+    "name": "Andrew Khomala,Kinanti Mayrisa Kenanga,Sitti Rahmadina Az Zahra Siregar,Tama Wicitra",
+    "songsCount": 1,
+    "views": 1238,
+    "totalRoyalty": 14981,
+    "netRoyalty": 14681,
+    "adsRev": 8922,
+    "subsRev": 6058,
+    "platformShares": [
+      60,
+      40
+    ],
+    "youtubeBreakdown": {
+      "adsPct": 60,
+      "subsPct": 40,
+      "adsRev": 8922,
+      "subsRev": 6058
+    },
+    "status": "Menunggu",
+    "isRealStatement": true,
+    "songsList": [
+      {
+        "title": "GG",
+        "amount": 14981,
+        "views": 1238,
+        "adsRev": 8922,
+        "subsRev": 6058,
+        "customId": "L000666"
+      }
+    ],
+    "topCountries": [
+      {
+        "code": "ID",
+        "rev": 6689
+      },
+      {
+        "code": "MY",
+        "rev": 4262
+      },
+      {
+        "code": "SG",
+        "rev": 1420
+      },
+      {
+        "code": "TW",
+        "rev": 630
+      },
+      {
+        "code": "TR",
+        "rev": 464
+      }
+    ]
+  },
+  {
+    "id": 211,
+    "name": "Agripa Hawi Kaisa,Dhandy Satria Jatmikanto",
+    "songsCount": 4,
+    "views": 202,
+    "totalRoyalty": 12979,
+    "netRoyalty": 12719,
+    "adsRev": 10813,
+    "subsRev": 2166,
+    "platformShares": [
+      83,
+      17
+    ],
+    "youtubeBreakdown": {
+      "adsPct": 83,
+      "subsPct": 17,
+      "adsRev": 10813,
+      "subsRev": 2166
+    },
+    "status": "Menunggu",
+    "isRealStatement": true,
+    "songsList": [
+      {
+        "title": "Down Under Skies",
+        "amount": 5430,
+        "views": 109,
+        "adsRev": 4688,
+        "subsRev": 741,
+        "customId": "L000761"
+      },
+      {
+        "title": "Surreal Journey To Unveil",
+        "amount": 4332,
+        "views": 57,
+        "adsRev": 3613,
+        "subsRev": 720,
+        "customId": "L000756"
+      },
+      {
+        "title": "Cristal Vision",
+        "amount": 2690,
+        "views": 33,
+        "adsRev": 2218,
+        "subsRev": 472,
+        "customId": "L000759"
+      },
+      {
+        "title": "Ratap Dan Elegi",
+        "amount": 528,
+        "views": 3,
+        "adsRev": 295,
+        "subsRev": 233,
+        "customId": "L000738"
+      }
+    ],
+    "topCountries": [
+      {
+        "code": "ID",
+        "rev": 11297
+      },
+      {
+        "code": "SG",
+        "rev": 623
+      },
+      {
+        "code": "MY",
+        "rev": 442
+      },
+      {
+        "code": "QA",
+        "rev": 235
+      },
+      {
+        "code": "UA",
+        "rev": 234
+      }
+    ]
+  },
+  {
+    "id": 212,
+    "name": "Dhandy Satria Jatmikanto,Fadhil,Lukman Mahdiez,Taksu Buana",
+    "songsCount": 1,
+    "views": 974,
+    "totalRoyalty": 9341,
+    "netRoyalty": 9154,
+    "adsRev": 5740,
+    "subsRev": 3602,
+    "platformShares": [
+      61,
+      39
+    ],
+    "youtubeBreakdown": {
+      "adsPct": 61,
+      "subsPct": 39,
+      "adsRev": 5740,
+      "subsRev": 3602
+    },
+    "status": "Menunggu",
+    "isRealStatement": true,
+    "songsList": [
+      {
+        "title": "Budak Sosialita",
+        "amount": 9341,
+        "views": 974,
+        "adsRev": 5740,
+        "subsRev": 3602,
+        "customId": "L000793"
+      }
+    ],
+    "topCountries": [
+      {
+        "code": "ID",
+        "rev": 5739
+      },
+      {
+        "code": "SG",
+        "rev": 702
+      },
+      {
+        "code": "AU",
+        "rev": 280
+      },
+      {
+        "code": "FR",
+        "rev": 253
+      },
+      {
+        "code": "ES",
+        "rev": 252
+      }
+    ]
+  },
+  {
+    "id": 213,
+    "name": "Antino Ristuaji,Dhandy Satria Jatmikanto,Fahreno Asnawan,Ferdiawan Listanto,Yoga Bhakti Wikanto",
+    "songsCount": 1,
+    "views": 128,
+    "totalRoyalty": 6161,
+    "netRoyalty": 6038,
+    "adsRev": 4971,
+    "subsRev": 1190,
+    "platformShares": [
+      81,
+      19
+    ],
+    "youtubeBreakdown": {
+      "adsPct": 81,
+      "subsPct": 19,
+      "adsRev": 4971,
+      "subsRev": 1190
+    },
+    "status": "Menunggu",
+    "isRealStatement": true,
+    "songsList": [
+      {
+        "title": "Coincidence",
+        "amount": 6161,
+        "views": 128,
+        "adsRev": 4971,
+        "subsRev": 1190,
+        "customId": "L000807"
+      }
+    ],
+    "topCountries": [
+      {
+        "code": "ID",
+        "rev": 5322
+      },
+      {
+        "code": "AU",
+        "rev": 249
+      },
+      {
+        "code": "TH",
+        "rev": 147
+      },
+      {
+        "code": "FR",
+        "rev": 147
+      },
+      {
+        "code": "AT",
+        "rev": 147
+      }
+    ]
+  },
+  {
+    "id": 214,
+    "name": "Jeremia Varrell B Jesaya Purba",
+    "songsCount": 1,
+    "views": 89,
+    "totalRoyalty": 5702,
+    "netRoyalty": 5588,
+    "adsRev": 3712,
+    "subsRev": 1989,
+    "platformShares": [
+      65,
+      35
+    ],
+    "youtubeBreakdown": {
+      "adsPct": 65,
+      "subsPct": 35,
+      "adsRev": 3712,
+      "subsRev": 1989
+    },
+    "status": "Menunggu",
+    "isRealStatement": true,
+    "songsList": [
+      {
+        "title": "Sunset & Ice Cream",
+        "amount": 5702,
+        "views": 89,
+        "adsRev": 3712,
+        "subsRev": 1989,
+        "customId": "L000659"
+      }
+    ],
+    "topCountries": [
+      {
+        "code": "ID",
+        "rev": 3168
+      },
+      {
+        "code": "MY",
+        "rev": 776
+      },
+      {
+        "code": "JP",
+        "rev": 485
+      },
+      {
+        "code": "FR",
+        "rev": 445
+      },
+      {
+        "code": "RU",
+        "rev": 295
+      }
+    ]
+  },
+  {
+    "id": 215,
+    "name": "Jeremia Varrell B Jesaya Purba,Muhammad Haikal Hibaturrahman",
+    "songsCount": 1,
+    "views": 29,
+    "totalRoyalty": 2738,
+    "netRoyalty": 2683,
+    "adsRev": 2505,
+    "subsRev": 233,
+    "platformShares": [
+      91,
+      9
+    ],
+    "youtubeBreakdown": {
+      "adsPct": 91,
+      "subsPct": 9,
+      "adsRev": 2505,
+      "subsRev": 233
+    },
+    "status": "Menunggu",
+    "isRealStatement": true,
+    "songsList": [
+      {
+        "title": "Planet Bekasi",
+        "amount": 2738,
+        "views": 29,
+        "adsRev": 2505,
+        "subsRev": 233,
+        "customId": "L000670"
+      }
+    ],
+    "topCountries": [
+      {
+        "code": "ID",
+        "rev": 2738
+      }
+    ]
+  },
+  {
+    "id": 216,
+    "name": "Tama Wicitra",
+    "songsCount": 1,
+    "views": 19,
+    "totalRoyalty": 2511,
+    "netRoyalty": 2461,
+    "adsRev": 1332,
+    "subsRev": 1179,
+    "platformShares": [
+      53,
+      47
+    ],
+    "youtubeBreakdown": {
+      "adsPct": 53,
+      "subsPct": 47,
+      "adsRev": 1332,
+      "subsRev": 1179
+    },
+    "status": "Menunggu",
+    "isRealStatement": true,
+    "songsList": [
+      {
+        "title": "Terpadel Padel",
+        "amount": 2511,
+        "views": 19,
+        "adsRev": 1332,
+        "subsRev": 1179,
+        "customId": "L000682"
+      }
+    ],
+    "topCountries": [
+      {
+        "code": "ID",
+        "rev": 1804
+      },
+      {
+        "code": "MY",
+        "rev": 475
+      },
+      {
+        "code": "TR",
+        "rev": 232
+      }
+    ]
+  },
+  {
+    "id": 217,
+    "name": "Mufid Ilham Putra Wisuda",
+    "songsCount": 2,
+    "views": 16,
+    "totalRoyalty": 2321,
+    "netRoyalty": 2275,
+    "adsRev": 1620,
+    "subsRev": 701,
+    "platformShares": [
+      70,
+      30
+    ],
+    "youtubeBreakdown": {
+      "adsPct": 70,
+      "subsPct": 30,
+      "adsRev": 1620,
+      "subsRev": 701
+    },
+    "status": "Menunggu",
+    "isRealStatement": true,
+    "songsList": [
+      {
+        "title": "Trustless",
+        "amount": 1410,
+        "views": 11,
+        "adsRev": 1178,
+        "subsRev": 232,
+        "customId": "L000677"
+      },
+      {
+        "title": "October",
+        "amount": 911,
+        "views": 5,
+        "adsRev": 442,
+        "subsRev": 469,
+        "customId": "L000668"
+      }
+    ],
+    "topCountries": [
+      {
+        "code": "ID",
+        "rev": 1205
+      },
+      {
+        "code": "US",
+        "rev": 232
+      },
+      {
+        "code": "NL",
+        "rev": 147
+      },
+      {
+        "code": "SB",
+        "rev": 147
+      },
+      {
+        "code": "FR",
+        "rev": 147
+      }
+    ]
+  },
+  {
+    "id": 218,
+    "name": "Agripa Hawi Kaisa,Dhandy Satria Jatmikanto,Reynaldo Daniel,Yoga Bhakti Wikanto",
+    "songsCount": 1,
+    "views": 36,
+    "totalRoyalty": 2275,
+    "netRoyalty": 2229,
+    "adsRev": 1774,
+    "subsRev": 501,
+    "platformShares": [
+      78,
+      22
+    ],
+    "youtubeBreakdown": {
+      "adsPct": 78,
+      "subsPct": 22,
+      "adsRev": 1774,
+      "subsRev": 501
+    },
+    "status": "Menunggu",
+    "isRealStatement": true,
+    "songsList": [
+      {
+        "title": "247",
+        "amount": 2275,
+        "views": 36,
+        "adsRev": 1774,
+        "subsRev": 501,
+        "customId": "L000768"
+      }
+    ],
+    "topCountries": [
+      {
+        "code": "ID",
+        "rev": 2275
+      }
+    ]
+  },
+  {
+    "id": 219,
+    "name": "Abdi Putra",
+    "songsCount": 1,
+    "views": 81,
+    "totalRoyalty": 1851,
+    "netRoyalty": 1814,
+    "adsRev": 1375,
+    "subsRev": 476,
+    "platformShares": [
+      74,
+      26
+    ],
+    "youtubeBreakdown": {
+      "adsPct": 74,
+      "subsPct": 26,
+      "adsRev": 1375,
+      "subsRev": 476
+    },
+    "status": "Menunggu",
+    "isRealStatement": true,
+    "songsList": [
+      {
+        "title": "Sore Kelabu",
+        "amount": 1851,
+        "views": 81,
+        "adsRev": 1375,
+        "subsRev": 476,
+        "customId": "L000688"
+      }
+    ],
+    "topCountries": [
+      {
+        "code": "ID",
+        "rev": 1461
+      },
+      {
+        "code": "MY",
+        "rev": 391
+      }
+    ]
+  },
+  {
+    "id": 220,
+    "name": "Andrew Khomala,Jeremia Varrell B Jesaya Purba,Muhammad Haikal Hibaturrahman",
+    "songsCount": 1,
+    "views": 13,
+    "totalRoyalty": 1794,
+    "netRoyalty": 1758,
+    "adsRev": 1327,
+    "subsRev": 467,
+    "platformShares": [
+      74,
+      26
+    ],
+    "youtubeBreakdown": {
+      "adsPct": 74,
+      "subsPct": 26,
+      "adsRev": 1327,
+      "subsRev": 467
+    },
+    "status": "Menunggu",
+    "isRealStatement": true,
+    "songsList": [
+      {
+        "title": "Gaskeun Cuk",
+        "amount": 1794,
+        "views": 13,
+        "adsRev": 1327,
+        "subsRev": 467,
+        "customId": "L000671"
+      }
+    ],
+    "topCountries": [
+      {
+        "code": "ID",
+        "rev": 1794
+      }
+    ]
+  },
+  {
+    "id": 221,
+    "name": "Kinanti Mayrisa Kenanga,Tomo Widayat",
+    "songsCount": 1,
+    "views": 10,
+    "totalRoyalty": 1326,
+    "netRoyalty": 1299,
+    "adsRev": 1326,
+    "subsRev": 0,
+    "platformShares": [
+      100,
+      0
+    ],
+    "youtubeBreakdown": {
+      "adsPct": 100,
+      "subsPct": 0,
+      "adsRev": 1326,
+      "subsRev": 0
+    },
+    "status": "Perlu dicek",
+    "isRealStatement": true,
+    "songsList": [
+      {
+        "title": "Libur Lebaran",
+        "amount": 1326,
+        "views": 10,
+        "adsRev": 1326,
+        "subsRev": 0,
+        "customId": "L000660"
+      }
+    ],
+    "topCountries": [
+      {
+        "code": "ID",
+        "rev": 1178
+      },
+      {
+        "code": "MY",
+        "rev": 147
+      }
+    ]
+  },
+  {
+    "id": 222,
+    "name": "Andrew Khomala,Herman Andrew Bong,Jaime Alvaro Fatia Kemur,Jeremia Varrell B Jesaya Purba,Kinanti Mayrisa Kenanga,Tama Wicitra",
+    "songsCount": 1,
+    "views": 6,
+    "totalRoyalty": 911,
+    "netRoyalty": 893,
+    "adsRev": 442,
+    "subsRev": 469,
+    "platformShares": [
+      49,
+      51
+    ],
+    "youtubeBreakdown": {
+      "adsPct": 49,
+      "subsPct": 51,
+      "adsRev": 442,
+      "subsRev": 469
+    },
+    "status": "Perlu dicek",
+    "isRealStatement": true,
+    "songsList": [
+      {
+        "title": "YOLO",
+        "amount": 911,
+        "views": 6,
+        "adsRev": 442,
+        "subsRev": 469,
+        "customId": "L000045"
+      }
+    ],
+    "topCountries": [
+      {
+        "code": "ID",
+        "rev": 911
+      }
+    ]
+  },
+  {
+    "id": 223,
+    "name": "Andrew Khomala",
+    "songsCount": 1,
+    "views": 6,
+    "totalRoyalty": 824,
+    "netRoyalty": 808,
+    "adsRev": 589,
+    "subsRev": 234,
+    "platformShares": [
+      72,
+      28
+    ],
+    "youtubeBreakdown": {
+      "adsPct": 72,
+      "subsPct": 28,
+      "adsRev": 589,
+      "subsRev": 234
+    },
+    "status": "Perlu dicek",
+    "isRealStatement": true,
+    "songsList": [
+      {
+        "title": "Fashion Week",
+        "amount": 824,
+        "views": 6,
+        "adsRev": 589,
+        "subsRev": 234,
+        "customId": "L000685"
+      }
+    ],
+    "topCountries": [
+      {
+        "code": "UA",
+        "rev": 234
+      },
+      {
+        "code": "JP",
+        "rev": 147
+      },
+      {
+        "code": "DE",
+        "rev": 147
+      },
+      {
+        "code": "RU",
+        "rev": 147
+      },
+      {
+        "code": "VN",
+        "rev": 147
+      }
+    ]
+  },
+  {
+    "id": 224,
+    "name": "Alfito Dea Nova,Muhammad Haikal Hibaturrahman",
+    "songsCount": 1,
+    "views": 3,
+    "totalRoyalty": 528,
+    "netRoyalty": 517,
+    "adsRev": 295,
+    "subsRev": 233,
+    "platformShares": [
+      56,
+      44
+    ],
+    "youtubeBreakdown": {
+      "adsPct": 56,
+      "subsPct": 44,
+      "adsRev": 295,
+      "subsRev": 233
+    },
+    "status": "Perlu dicek",
+    "isRealStatement": true,
+    "songsList": [
+      {
+        "title": "Gue Apa Dia?",
+        "amount": 528,
+        "views": 3,
+        "adsRev": 295,
+        "subsRev": 233,
+        "customId": "L000675"
+      }
+    ],
+    "topCountries": [
+      {
+        "code": "ID",
+        "rev": 528
+      }
+    ]
+  },
+  {
+    "id": 225,
+    "name": "Dhandy Satria Jatmikanto,Umarrudin Wicaksono",
+    "songsCount": 1,
+    "views": 6,
+    "totalRoyalty": 296,
+    "netRoyalty": 290,
+    "adsRev": 296,
+    "subsRev": 0,
+    "platformShares": [
+      100,
+      0
+    ],
+    "youtubeBreakdown": {
+      "adsPct": 100,
+      "subsPct": 0,
+      "adsRev": 296,
+      "subsRev": 0
+    },
+    "status": "Perlu dicek",
+    "isRealStatement": true,
+    "songsList": [
+      {
+        "title": "Ibu, Kutakut Jakarta",
+        "amount": 296,
+        "views": 6,
+        "adsRev": 296,
+        "subsRev": 0,
+        "customId": "L000811"
+      }
+    ],
+    "topCountries": [
+      {
+        "code": "ID",
+        "rev": 296
+      }
+    ]
+  },
+  {
+    "id": 226,
+    "name": "Danny Eriawan,Dhandy Satria Jatmikanto",
+    "songsCount": 1,
+    "views": 2,
+    "totalRoyalty": 295,
+    "netRoyalty": 289,
+    "adsRev": 295,
+    "subsRev": 0,
+    "platformShares": [
+      100,
+      0
+    ],
+    "youtubeBreakdown": {
+      "adsPct": 100,
+      "subsPct": 0,
+      "adsRev": 295,
+      "subsRev": 0
+    },
+    "status": "Perlu dicek",
+    "isRealStatement": true,
+    "songsList": [
+      {
+        "title": "Sepi",
+        "amount": 295,
+        "views": 2,
+        "adsRev": 295,
+        "subsRev": 0,
+        "customId": "L000739"
+      }
+    ],
+    "topCountries": [
+      {
+        "code": "ID",
+        "rev": 295
+      }
+    ]
+  },
+  {
+    "id": 227,
+    "name": "Victor Nifati Zebua",
+    "songsCount": 1,
+    "views": 1,
+    "totalRoyalty": 161,
+    "netRoyalty": 158,
+    "adsRev": 161,
+    "subsRev": 0,
+    "platformShares": [
+      100,
+      0
+    ],
+    "youtubeBreakdown": {
+      "adsPct": 100,
+      "subsPct": 0,
+      "adsRev": 161,
+      "subsRev": 0
+    },
+    "status": "Perlu dicek",
+    "isRealStatement": true,
+    "songsList": [
+      {
+        "title": "Senandung Ibu Pertiwi",
+        "amount": 161,
+        "views": 1,
+        "adsRev": 161,
+        "subsRev": 0,
+        "customId": "L000724"
+      }
+    ],
+    "topCountries": [
+      {
+        "code": "ID",
+        "rev": 161
+      }
+    ]
+  },
+  {
+    "id": 228,
+    "name": "Andrew Khomala,Vincentius Jason Sebastian Ng",
+    "songsCount": 1,
+    "views": 1,
+    "totalRoyalty": 147,
+    "netRoyalty": 144,
+    "adsRev": 147,
+    "subsRev": 0,
+    "platformShares": [
+      100,
+      0
+    ],
+    "youtubeBreakdown": {
+      "adsPct": 100,
+      "subsPct": 0,
+      "adsRev": 147,
+      "subsRev": 0
+    },
+    "status": "Perlu dicek",
+    "isRealStatement": true,
+    "songsList": [
+      {
+        "title": "Before You Go",
+        "amount": 147,
+        "views": 1,
+        "adsRev": 147,
+        "subsRev": 0,
+        "customId": "L000672"
+      }
+    ],
+    "topCountries": [
+      {
+        "code": "ID",
+        "rev": 147
+      }
+    ]
+  }
+];

@@ -1,0 +1,114 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  /* LOKA Brand Tokens */
+  --primary-600: #2563EB;
+  --primary-500: #3B82F6;
+  --primary-300: #93A8F0;
+  --primary-100: #E8EEFD;
+  --primary-50:  #EEF2FF;
+  --primary-hover: #1D4ED8;
+  --primary-pressed: #1E40AF;
+  --primary-disabled: #93B4F5;
+  --accent-orange: #FF8A00;
+
+  /* Neutral & Surfaces */
+  --bg-page: #FAFAFA;
+  --bg-surface: #FFFFFF;
+  --bg-row-alt: #F5F8FE;
+  --border-default: #E5E7EB;
+  --text-primary: #111827;
+  --text-secondary: #4B5563;
+  --text-disabled: #C7CDD6;
+  --icon-chip-bg: #D6DAE3;
+
+  /* Chart Colors */
+  --chart-mechanical: #D0382E;
+  --chart-synchron: #FFB400;
+  --chart-performing: #4B3BE8;
+  --chart-dsp: #3F9468;
+  --chart-empty: #757575;
+
+  /* Status Colors (WCAG AA Compliant Pairs) */
+  --status-pemakaian-text: #C2610C;
+  --status-pemakaian-bg: #FFF8F0;
+  --status-pemakaian-border: #F3D9BF;
+
+  --status-tersedia-text: #2F855A;
+  --status-tersedia-bg: #F3FBF6;
+  --status-tersedia-border: #B7DCC5;
+
+  --status-perlu-dicek-text: #991B1B;
+  --status-perlu-dicek-bg: #FEE2E2;
+  --status-perlu-dicek-border: #FCA5A5;
+
+  /* Emil Kowalski Custom Easing Curves */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+
+  /* Radius & Shadows */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 9999px;
+  --shadow-card: 0 1px 3px rgba(16, 24, 40, 0.10), 0 1px 2px rgba(16, 24, 40, 0.06);
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-page);
+  color: var(--text-primary);
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Tabular numbers for financial and tabular alignment */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Touch & Interaction (UI/UX Pro Max + Emil Design Eng) */
+@media (hover: hover) and (pointer: fine) {
+  .hover-elevate {
+    transition: transform 160ms var(--ease-out), box-shadow 160ms var(--ease-out);
+  }
+  .hover-elevate:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+  }
+}
+
+/* Reduced Motion Safety */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Custom minimal scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #D1D5DB;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #9CA3AF;
+}
