@@ -685,6 +685,26 @@ export const UploadDistribution: React.FC<UploadDistributionProps> = ({
       {/* ═══════════════════════════════════════════════ */}
       {step === 'results' && batch && (
         <div className="space-y-5">
+          {/* PB-4.5.3: Staged Publishing Draft Banner */}
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-[12px] p-4 flex items-start gap-3.5 shadow-2xs">
+            <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 text-lg">
+              ⏳
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <span className="text-[14px] font-bold text-amber-950">
+                  Laporan Berhasil Diimpor sebagai Draft (Tahap Peninjauan)
+                </span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-200/80 text-amber-900 tracking-wide uppercase">
+                  PB-4.5.3
+                </span>
+              </div>
+              <p className="text-[12px] text-amber-900 mt-1 leading-relaxed">
+                Laporan telah dianalisa oleh engine pencocokan 3 tahap, namun <strong>belum dikirimkan ke akun pencipta</strong>. Royalti akan resmi tampil di akun musisi setelah melalui verifikasi pengecualian dan otorisasi publikasi di <strong>Riwayat Batch</strong>.
+              </p>
+            </div>
+          </div>
+
           {/* Auto-registration Results */}
           {autoRegisterResults && (
             <div className="bg-[#EFF6FF] border border-[#BFDBFE] rounded-[8px] px-4 py-3">
@@ -819,8 +839,9 @@ export const UploadDistribution: React.FC<UploadDistributionProps> = ({
                     Hasil grouping per IPBASE NO · {memberSummaries.length} pemegang hak
                   </Typography>
                 </div>
-                <span className="text-[12px] font-semibold text-[#059669] bg-[#ECFDF5] px-2.5 py-1 rounded-md">
-                  Terdistribusi
+                <span className="text-[12px] font-semibold text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-md flex items-center gap-1">
+                  <span>⏳</span>
+                  <span>Draft Kalkulasi (Belum Terbit)</span>
                 </span>
               </div>
 

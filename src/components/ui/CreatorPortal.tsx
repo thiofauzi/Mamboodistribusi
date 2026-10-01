@@ -4,7 +4,11 @@ import { Typography } from './Typography';
 import { Button } from './Button';
 import { StatCard } from './StatCard';
 import { StatusBadge } from './StatusBadge';
-import { getCreatorsFromAllBatches } from '../../data/distributionEngine';
+import {
+  getCreatorsFromAllBatches,
+  getPendingBatches,
+  getAllBatches,
+} from '../../data/distributionEngine';
 import {
   getCreatorPortalData,
   AVAILABLE_PERIODS,
@@ -22,7 +26,12 @@ export const CreatorPortal: React.FC<CreatorPortalProps> = ({
   initialCreatorId,
   onBackToAdmin,
 }) => {
-  const allCreators = useMemo(() => getCreatorsFromAllBatches(), []);
+  // PB-1.1: Only reads published and locked batches
+  const allCreators = useMemo(() => getCreatorsFromAllBatches(true), []);
+  const pendingBatches = useMemo(() => getPendingBatches(), []);
+  const publishedBatches = useMemo(() => {
+    return getAllBatches().filter((b) => b.status === 'published' || b.status === 'distributed');
+  }, []);
 
   // Selected creator state
   const [selectedCreatorId, setSelectedCreatorId] = useState<number>(() => {
@@ -56,6 +65,16 @@ export const CreatorPortal: React.FC<CreatorPortalProps> = ({
     if (!currentCreator) return null;
     return getCreatorPortalData(currentCreator, selectedPeriod);
   }, [currentCreator, selectedPeriod]);
+
+  // PB-1.2: Check if any batch in current or selected period is still in review/ready_to_publish
+  const pendingForSelectedPeriod = useMemo(() => {
+    return pendingBatches.find(
+      (b) =>
+        b.period.toLowerCase().includes(selectedPeriod.toLowerCase()) ||
+        selectedPeriod.toLowerCase().includes(b.period.toLowerCase()) ||
+        (selectedPeriod === 'Mei 2026' && b.period === 'Mei 2026')
+    );
+  }, [pendingBatches, selectedPeriod]);
 
   const formatCurrency = (val: number) =>
     'Rp ' + Math.round(val).toLocaleString('id-ID');
@@ -230,6 +249,28 @@ export const CreatorPortal: React.FC<CreatorPortalProps> = ({
           )}
         </div>
       </div>
+
+      {/* ── PB-1.2: Informative Verification Banner ─────────────────── */}
+      {pendingForSelectedPeriod && (
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50/60 border border-amber-200/90 rounded-[12px] p-4 flex items-start gap-3.5 shadow-2xs animate-in fade-in">
+          <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 text-lg">
+            ℹ️
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <span className="text-[13px] font-bold text-amber-950">
+                Laporan Royalti Periode {pendingForSelectedPeriod.period} Sedang dalam Proses Verifikasi Tim LOKA
+              </span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-200/70 text-amber-900 tracking-wide">
+                PB-1.2
+              </span>
+            </div>
+            <p className="text-[12px] text-amber-800/90 mt-1 leading-relaxed">
+              Laporan distribusi royalti DSP ({pendingForSelectedPeriod.fileName}) saat ini sedang melewati tahap rekonsiliasi dan verifikasi hak cipta oleh Tim Royalty & Finance LOKA Publishing. Saldo resmi dan rincian lagu akan diperbarui secara otomatis setelah proses distribusi selesai diotorisasi oleh tim.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* ── Tab Navigation Bar (Ringkasan, Lagu, Platform) ──────────── */}
       <div className="border-b border-[#E5E7EB] flex items-center justify-between gap-4">

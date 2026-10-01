@@ -15,3 +15,5 @@ export * from './UploadDistribution';
 export * from './BatchHistory';
 export * from './CreatorPortal';
 export * from './ExceptionResolver';
+export * from './PublishModal';
+export * from './UnpublishModal';

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Card } from './Card';
 import { Typography } from './Typography';
 import { Button } from './Button';
@@ -30,14 +30,143 @@ export interface ExceptionResolverProps {
   onBack?: () => void;
   initialBatchId?: string;
   onRefreshData?: () => void;
+  onNavigateToBatchHistory?: () => void;
 }
 
 type ViewMode = 'rows' | 'grouped_asset';
+
+// ─── Animated number counter hook ────────────────────────
+function useAnimatedValue(target: number, duration = 600) {
+  const [value, setValue] = useState(0);
+  const ref = useRef<number>(0);
+  useEffect(() => {
+    const start = ref.current;
+    const diff = target - start;
+    if (diff === 0) return;
+    const startTime = performance.now();
+    const animate = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const current = start + diff * eased;
+      setValue(Math.round(current));
+      ref.current = Math.round(current);
+      if (progress < 1) requestAnimationFrame(animate);
+    };
+    requestAnimationFrame(animate);
+  }, [target, duration]);
+  return value;
+}
+
+// ─── Circular progress ring ──────────────────────────────
+const ProgressRing: React.FC<{
+  value: number;
+  max: number;
+  size?: number;
+  strokeWidth?: number;
+  color: string;
+  bgColor?: string;
+  label: string;
+  sublabel?: string;
+}> = ({ value, max, size = 96, strokeWidth = 6, color, bgColor = '#E5E7EB', label, sublabel }) => {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const pct = max > 0 ? value / max : 0;
+  const offset = circumference - pct * circumference;
+
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <div className="relative" style={{ width: size, height: size }}>
+        <svg width={size} height={size} className="transform -rotate-90">
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="none"
+            stroke={bgColor}
+            strokeWidth={strokeWidth}
+          />
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="none"
+            stroke={color}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={offset}
+            style={{ transition: 'stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1)' }}
+          />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-xl font-extrabold text-gray-900 leading-none">{value}</span>
+        </div>
+      </div>
+      <div className="text-center">
+        <div className="text-[11px] font-semibold text-gray-700 leading-tight">{label}</div>
+        {sublabel && <div className="text-[10px] text-gray-400 mt-0.5">{sublabel}</div>}
+      </div>
+    </div>
+  );
+};
+
+// ─── Stage Pipeline Visualization ────────────────────────
+const StagePipeline: React.FC<{
+  stage1: number;
+  stage2: number;
+  stage3: number;
+  conflicts: number;
+  resolved: number;
+  total: number;
+}> = ({ stage1, stage2, stage3, conflicts, resolved, total }) => {
+  const stages = [
+    { label: 'Tahap 1', sublabel: 'Asset ID', count: stage1, color: '#E11D48', bgColor: '#FFE4E6', icon: '⛔' },
+    { label: 'Tahap 2', sublabel: 'Writer', count: stage2, color: '#D97706', bgColor: '#FEF3C7', icon: '⚠' },
+    { label: 'Tahap 3', sublabel: 'Custom ID', count: stage3, color: '#0284C7', bgColor: '#E0F2FE', icon: 'ⓘ' },
+    { label: 'Konflik', sublabel: 'Silang', count: conflicts, color: '#7C3AED', bgColor: '#EDE9FE', icon: '⇄' },
+    { label: 'Selesai', sublabel: 'Re-process', count: resolved, color: '#059669', bgColor: '#D1FAE5', icon: '✓' },
+  ];
+
+  return (
+    <div className="flex items-center gap-1 overflow-x-auto py-2">
+      {stages.map((s, i) => (
+        <React.Fragment key={s.label}>
+          <button
+            className="group flex-shrink-0 flex flex-col items-center gap-1.5 px-3 py-2.5 rounded-xl border transition-all hover:scale-105 hover:shadow-md cursor-default"
+            style={{
+              borderColor: s.count > 0 ? s.color + '40' : '#E5E7EB',
+              backgroundColor: s.count > 0 ? s.bgColor : '#F9FAFB',
+            }}
+          >
+            <span className="text-base">{s.icon}</span>
+            <span
+              className="text-xl font-extrabold leading-none"
+              style={{ color: s.count > 0 ? s.color : '#9CA3AF' }}
+            >
+              {s.count}
+            </span>
+            <div className="text-center">
+              <div className="text-[10px] font-bold text-gray-700">{s.label}</div>
+              <div className="text-[9px] text-gray-400">{s.sublabel}</div>
+            </div>
+          </button>
+          {i < stages.length - 1 && (
+            <svg className="w-5 h-5 text-gray-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+            </svg>
+          )}
+        </React.Fragment>
+      ))}
+    </div>
+  );
+};
 
 export const ExceptionResolver: React.FC<ExceptionResolverProps> = ({
   onBack,
   initialBatchId,
   onRefreshData,
+  onNavigateToBatchHistory,
 }) => {
   // Batch & View filter state
   const [selectedBatchId, setSelectedBatchId] = useState<string>(initialBatchId || '');
@@ -51,7 +180,10 @@ export const ExceptionResolver: React.FC<ExceptionResolverProps> = ({
   // Selection for bulk actions
   const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
 
-  // Resolver Modals state
+  // Inline resolver expand state (replaces modals for better UX)
+  const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
+
+  // Resolver Modals state (kept for complex flows like conflict)
   const [activeModalRow, setActiveModalRow] = useState<MatchedSourceRow | null>(null);
   const [activeModalType, setActiveModalType] = useState<
     'stage1' | 'stage2' | 'stage3' | 'conflict' | 'hold' | 'ignore' | 'detail' | null
@@ -70,11 +202,17 @@ export const ExceptionResolver: React.FC<ExceptionResolverProps> = ({
   const [showAuditLogs, setShowAuditLogs] = useState(false);
 
   // Notification Toast state
-  const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'info' | 'error' } | null>(null);
+  const [toasts, setToasts] = useState<{ id: string; text: string; type: 'success' | 'info' | 'error'; leaving?: boolean }[]>([]);
 
   const showToast = (text: string, type: 'success' | 'info' | 'error' = 'success') => {
-    setToastMessage({ text, type });
-    setTimeout(() => setToastMessage(null), 3500);
+    const id = 'toast-' + Date.now();
+    setToasts((prev) => [...prev, { id, text, type }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.map((t) => (t.id === id ? { ...t, leaving: true } : t)));
+      setTimeout(() => {
+        setToasts((prev) => prev.filter((t) => t.id !== id));
+      }, 350);
+    }, 4000);
   };
 
   const batches = getAllBatches();
@@ -96,6 +234,11 @@ export const ExceptionResolver: React.FC<ExceptionResolverProps> = ({
 
   const formatCurrency = (val: number) =>
     'Rp ' + Math.round(val).toLocaleString('id-ID');
+
+  // Animated stat values
+  const animOpen = useAnimatedValue(stats.unmatched + stats.conflicts);
+  const animRevenue = useAnimatedValue(Math.round(stats.unresolvedRevenue));
+  const animResolved = useAnimatedValue(stats.resolved);
 
   // Filtered rows for display
   const filteredRows = useMemo(() => {
@@ -200,6 +343,11 @@ export const ExceptionResolver: React.FC<ExceptionResolverProps> = ({
     }
   };
 
+  // Toggle inline expand
+  const toggleExpand = (rowId: string) => {
+    setExpandedRowId((prev) => (prev === rowId ? null : rowId));
+  };
+
   // Quick action: Undo
   const handleUndo = (rowId: string) => {
     undoResolution(rowId);
@@ -283,298 +431,322 @@ export const ExceptionResolver: React.FC<ExceptionResolverProps> = ({
   };
 
   // Status Badge Helper (Color-blind safe with icon + clear label)
-  const renderStatusBadge = (row: MatchedSourceRow) => {
+  const renderStatusBadge = (row: MatchedSourceRow, compact = false) => {
+    const baseClass = compact
+      ? 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold'
+      : 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold';
+
     if (row.matchStatus === 'resolved') {
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300">
-          <svg className="w-3.5 h-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
-          </svg>
-          ✓ Siap Re-process
+        <span className={`${baseClass} bg-emerald-50 text-emerald-700 border border-emerald-200`}>
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+          Siap Re-process
         </span>
       );
     }
 
     if (row.matchStatus === 'on_hold') {
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-300">
-          <svg className="w-3.5 h-3.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          ⏸ Ditahan
+        <span className={`${baseClass} bg-blue-50 text-blue-700 border border-blue-200`}>
+          <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+          Ditahan
         </span>
       );
     }
 
     if (row.matchStatus === 'ignored') {
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-300">
-          <svg className="w-3.5 h-3.5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-          </svg>
-          ⊘ Diabaikan
+        <span className={`${baseClass} bg-gray-100 text-gray-600 border border-gray-200`}>
+          <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
+          Diabaikan
         </span>
       );
     }
 
     if (row.matchStatus === 'conflict') {
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-800 border border-purple-300">
-          <svg className="w-3.5 h-3.5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-          </svg>
-          ⇄ Konflik Validasi
+        <span className={`${baseClass} bg-purple-50 text-purple-700 border border-purple-200`}>
+          <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
+          Konflik
         </span>
       );
     }
 
     if (row.failedStage === 1) {
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-800 border border-rose-300">
-          <span className="w-2 h-2 rounded-full bg-rose-600"></span>
-          ⛔ Tahap 1: Asset ID
+        <span className={`${baseClass} bg-rose-50 text-rose-700 border border-rose-200`}>
+          <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+          T-1 Asset ID
         </span>
       );
     }
 
     if (row.failedStage === 2) {
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-900 border border-amber-300">
-          <span className="w-2 h-2 rounded-full bg-amber-600"></span>
-          ⚠ Tahap 2: Writer
+        <span className={`${baseClass} bg-amber-50 text-amber-800 border border-amber-200`}>
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+          T-2 Writer
         </span>
       );
     }
 
     if (row.failedStage === 3) {
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-sky-100 text-sky-800 border border-sky-300">
-          <span className="w-2 h-2 rounded-full bg-sky-600"></span>
-          ⓘ Tahap 3: Custom ID
+        <span className={`${baseClass} bg-sky-50 text-sky-700 border border-sky-200`}>
+          <span className="w-1.5 h-1.5 rounded-full bg-sky-500"></span>
+          T-3 Custom ID
         </span>
       );
     }
 
     return (
-      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+      <span className={`${baseClass} bg-gray-100 text-gray-700`}>
         Unmatched
       </span>
     );
   };
 
+  // DSP icon badge
+  const renderDspIcon = (dsp: string) => {
+    const configs: Record<string, { bg: string; text: string; label: string }> = {
+      YOUTUBE: { bg: 'bg-red-50 border-red-200', text: 'text-red-700', label: 'YT' },
+      SPOTIFY: { bg: 'bg-green-50 border-green-200', text: 'text-green-700', label: 'SP' },
+      APPLE_MUSIC: { bg: 'bg-gray-50 border-gray-200', text: 'text-gray-700', label: 'AM' },
+      TIKTOK: { bg: 'bg-pink-50 border-pink-200', text: 'text-pink-700', label: 'TT' },
+    };
+    const c = configs[dsp] || { bg: 'bg-gray-50 border-gray-200', text: 'text-gray-600', label: dsp?.substring(0, 2) };
+
+    return (
+      <span className={`inline-flex items-center justify-center w-8 h-8 rounded-lg border text-[10px] font-black ${c.bg} ${c.text}`}>
+        {c.label}
+      </span>
+    );
+  };
+
+  const totalOpenIssues = stats.unmatched + stats.conflicts;
+  const totalAll = totalOpenIssues + stats.resolved + stats.onHold + stats.ignored;
+
   return (
-    <div className="w-full space-y-6 pb-16">
-      {/* Toast Notification */}
-      {toastMessage && (
-        <div
-          className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-lg shadow-lg border flex items-center gap-3 transition-all ${
-            toastMessage.type === 'success'
-              ? 'bg-emerald-900 text-white border-emerald-700'
-              : toastMessage.type === 'error'
-              ? 'bg-rose-900 text-white border-rose-700'
-              : 'bg-slate-900 text-white border-slate-700'
-          }`}
-        >
-          <span>{toastMessage.text}</span>
-          <button
-            onClick={() => setToastMessage(null)}
-            className="text-white/70 hover:text-white ml-2 text-sm"
-          >
-            ✕
-          </button>
-        </div>
-      )}
-
-      {/* Header & Page Title */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-        <div>
-          <div className="flex items-center gap-3">
-            {onBack && (
-              <button
-                onClick={onBack}
-                className="p-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
-                title="Kembali"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-            )}
-            <Typography variant="heading-2" className="text-gray-900 font-bold tracking-tight">
-              Daftar Pengecualian & Resolver Baris
-            </Typography>
-            <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-              FR-3 & FR-3a Engine
-            </span>
-          </div>
-          <Typography variant="body" className="text-gray-600 mt-1">
-            Identifikasi, petakan Asset ID & Writer alias baru, selesaikan baris tidak cocok, dan jalankan
-            re-process untuk mendistribusikan royalti pencipta 100% seimbang.
-          </Typography>
-        </div>
-
-        {/* Global Action Buttons */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <Button
-            variant="secondary"
-            onClick={() => setShowAuditLogs(true)}
-            className="border-gray-300 text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-          >
-            <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            Audit Trail ({auditLogs.length})
-          </Button>
-
-          <Button
-            variant="secondary"
-            onClick={handleAutoMap}
-            className="border-blue-300 text-blue-700 bg-blue-50/50 hover:bg-blue-50 flex items-center gap-2"
-          >
-            <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-            Auto-Map Exact
-          </Button>
-
-          <Button
-            variant="primary"
-            onClick={handleReprocess}
-            disabled={stats.resolved === 0}
-            className={`flex items-center gap-2 ${
-              stats.resolved === 0 ? 'opacity-60 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
+    <div className="w-full space-y-5 pb-16">
+      {/* ─── Toast Notifications (stacked, animated) ─── */}
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2">
+        {toasts.map((t) => (
+          <div
+            key={t.id}
+            className={`px-4 py-3 rounded-xl shadow-xl border flex items-center gap-3 min-w-[320px] max-w-[420px] backdrop-blur-sm transition-all duration-300 ${
+              t.leaving ? 'opacity-0 translate-x-8' : 'opacity-100 translate-x-0'
+            } ${
+              t.type === 'success'
+                ? 'bg-emerald-950/95 text-emerald-50 border-emerald-800'
+                : t.type === 'error'
+                ? 'bg-rose-950/95 text-rose-50 border-rose-800'
+                : 'bg-slate-950/95 text-slate-50 border-slate-800'
             }`}
+            style={{ animation: t.leaving ? undefined : 'slideInRight 0.3s ease-out' }}
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            Re-process Batch ({stats.resolved})
-          </Button>
+            <span className="text-base flex-shrink-0">
+              {t.type === 'success' ? '✅' : t.type === 'error' ? '❌' : 'ℹ️'}
+            </span>
+            <span className="text-xs font-medium leading-snug flex-1">{t.text}</span>
+            <button
+              onClick={() => setToasts((prev) => prev.filter((x) => x.id !== t.id))}
+              className="text-white/50 hover:text-white ml-1 text-sm flex-shrink-0"
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {/* ─── Page Header ─── */}
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="p-6 pb-4">
+          <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+            <div className="flex items-start gap-3">
+              {onBack && (
+                <button
+                  onClick={onBack}
+                  className="mt-1 p-2 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-all hover:scale-105"
+                  title="Kembali"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+              )}
+              <div>
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <Typography variant="heading-2" className="text-gray-900 font-bold tracking-tight">
+                    Daftar Pengecualian & Resolver
+                  </Typography>
+                  <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-gradient-to-r from-blue-600 to-indigo-600 text-white tracking-wider uppercase">
+                    FR-3
+                  </span>
+                </div>
+                <Typography variant="body" className="text-gray-500 mt-1 text-sm">
+                  Identifikasi, petakan, dan selesaikan baris tidak cocok untuk distribusi royalti 100% seimbang.
+                </Typography>
+              </div>
+            </div>
+
+            {/* Global Action Buttons */}
+            <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
+              <button
+                onClick={() => setShowAuditLogs(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 bg-white text-xs font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-all"
+              >
+                <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Riwayat
+                {auditLogs.length > 0 && (
+                  <span className="px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600 text-[10px] font-bold">
+                    {auditLogs.length}
+                  </span>
+                )}
+              </button>
+
+              <button
+                onClick={handleAutoMap}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-blue-200 bg-blue-50 text-xs font-semibold text-blue-700 hover:bg-blue-100 hover:border-blue-300 transition-all"
+              >
+                <svg className="w-3.5 h-3.5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                Auto-Map
+              </button>
+
+              <button
+                onClick={handleReprocess}
+                disabled={stats.resolved === 0}
+                className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm ${
+                  stats.resolved === 0
+                    ? 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 hover:shadow-md'
+                }`}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Re-process ({stats.resolved})
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* ─── Stats Overview Row (inside header card) ─── */}
+        <div className="px-6 pb-5 pt-2 border-t border-gray-100">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
+            {/* Stat: Open Issues */}
+            <div className="flex items-center gap-3.5">
+              <ProgressRing
+                value={animOpen}
+                max={Math.max(totalAll, 1)}
+                color="#E11D48"
+                bgColor="#FEE2E2"
+                size={64}
+                strokeWidth={5}
+                label="Isu Terbuka"
+                sublabel="baris bermasalah"
+              />
+              <div>
+                <div className="text-2xl font-extrabold text-gray-900">{animOpen}</div>
+                <div className="text-[10px] text-gray-400 mt-0.5">
+                  {stats.onHold > 0 && <span className="text-blue-600">+{stats.onHold} ditahan</span>}
+                  {stats.ignored > 0 && <span className="text-gray-500 ml-1">+{stats.ignored} diabaikan</span>}
+                </div>
+                {stats.agingCount > 0 && (
+                  <div className="text-[10px] font-bold text-rose-600 mt-0.5 flex items-center gap-0.5">
+                    <span className="w-1 h-1 rounded-full bg-rose-500 animate-pulse"></span>
+                    {stats.agingCount} menua &gt;30hr
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Stat: Held Revenue */}
+            <div className="flex items-center gap-3.5">
+              <ProgressRing
+                value={Math.min(Math.round((stats.unresolvedRevenue / Math.max(stats.unresolvedRevenue + 1, 1)) * 100), 100)}
+                max={100}
+                color="#D97706"
+                bgColor="#FEF3C7"
+                size={64}
+                strokeWidth={5}
+                label="Tertahan"
+                sublabel="pendapatan"
+              />
+              <div>
+                <div className="text-lg font-extrabold text-gray-900 leading-tight">
+                  {formatCurrency(animRevenue)}
+                </div>
+                <div className="text-[10px] text-gray-400">
+                  USD ~${stats.unresolvedIncomeRev.toFixed(2)}
+                </div>
+              </div>
+            </div>
+
+            {/* Stat: Stage Pipeline (compact) */}
+            <div className="col-span-2 lg:col-span-1">
+              <StagePipeline
+                stage1={stats.byStage.stage1}
+                stage2={stats.byStage.stage2}
+                stage3={stats.byStage.stage3}
+                conflicts={stats.conflicts}
+                resolved={stats.resolved}
+                total={totalAll}
+              />
+            </div>
+
+            {/* Stat: Resolution */}
+            <div className="flex items-center gap-3.5">
+              <ProgressRing
+                value={animResolved}
+                max={Math.max(totalAll, 1)}
+                color="#059669"
+                bgColor="#D1FAE5"
+                size={64}
+                strokeWidth={5}
+                label="Siap Proses"
+                sublabel="baris resolved"
+              />
+              <div>
+                <div className="text-2xl font-extrabold text-emerald-600">{animResolved}</div>
+                <div className="text-[10px] text-gray-400">
+                  Rekonsiliasi:{' '}
+                  <span className="text-emerald-600 font-bold">Rp 0</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* 4 Stat Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Total Isu Terbuka */}
-        <Card className="p-5 border-l-4 border-l-rose-500 bg-white shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-500">Total Isu Terbuka</span>
-            <span className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center font-bold text-sm">
-              !
-            </span>
-          </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-gray-900 tracking-tight">
-              {stats.unmatched + stats.conflicts}
-            </span>
-            <span className="text-sm text-gray-500 font-medium">baris belum terdistribusi</span>
-          </div>
-          <div className="mt-2.5 flex items-center justify-between text-xs text-gray-600 pt-2 border-t border-gray-100">
-            <span>Ditahan: {stats.onHold} | Diabaikan: {stats.ignored}</span>
-            {stats.agingCount > 0 && (
-              <span className="text-rose-600 font-semibold flex items-center gap-1">
-                ⚠️ {stats.agingCount} &gt; 30 hari
-              </span>
-            )}
-          </div>
-        </Card>
-
-        {/* Card 2: Tertahan Pendapatan */}
-        <Card className="p-5 border-l-4 border-l-amber-500 bg-white shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-500">Tertahan Pendapatan</span>
-            <span className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-sm">
-              Rp
-            </span>
-          </div>
-          <div className="mt-3">
-            <div className="text-2xl font-extrabold text-gray-900 tracking-tight">
-              {formatCurrency(stats.unresolvedRevenue)}
-            </div>
-            <div className="text-xs text-gray-500 font-medium mt-0.5">
-              USD ~${stats.unresolvedIncomeRev.toFixed(2)}
-            </div>
-          </div>
-          <div className="mt-2.5 text-xs text-gray-500 pt-2 border-t border-gray-100 flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-            Tertahan hingga dipetakan ke katalog resmi
-          </div>
-        </Card>
-
-        {/* Card 3: Distribusi Tahap Gagal */}
-        <Card className="p-5 border-l-4 border-l-indigo-500 bg-white shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-500">Distribusi Tahap Gagal</span>
-            <span className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-xs">
-              1-2-3
-            </span>
-          </div>
-          <div className="mt-2.5 grid grid-cols-2 gap-2 text-xs">
-            <div className="bg-rose-50 p-1.5 rounded border border-rose-100 flex items-center justify-between">
-              <span className="text-rose-700 font-medium">⛔ T-1 Asset</span>
-              <span className="font-bold text-rose-900">{stats.byStage.stage1}</span>
-            </div>
-            <div className="bg-amber-50 p-1.5 rounded border border-amber-100 flex items-center justify-between">
-              <span className="text-amber-700 font-medium">⚠ T-2 Writer</span>
-              <span className="font-bold text-amber-900">{stats.byStage.stage2}</span>
-            </div>
-            <div className="bg-sky-50 p-1.5 rounded border border-sky-100 flex items-center justify-between">
-              <span className="text-sky-700 font-medium">ⓘ T-3 Custom</span>
-              <span className="font-bold text-sky-900">{stats.byStage.stage3}</span>
-            </div>
-            <div className="bg-purple-50 p-1.5 rounded border border-purple-100 flex items-center justify-between">
-              <span className="text-purple-700 font-medium">⇄ Konflik</span>
-              <span className="font-bold text-purple-900">{stats.conflicts}</span>
-            </div>
-          </div>
-        </Card>
-
-        {/* Card 4: Status Resolusi & Rekonsiliasi */}
-        <Card className="p-5 border-l-4 border-l-emerald-500 bg-white shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-500">Status Resolusi</span>
-            <span className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-sm">
-              ✓
-            </span>
-          </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-emerald-600 tracking-tight">
-              {stats.resolved}
-            </span>
-            <span className="text-sm text-gray-500 font-medium">baris siap re-process</span>
-          </div>
-          <div className="mt-2.5 flex items-center justify-between text-xs text-gray-600 pt-2 border-t border-gray-100">
-            <span>Rekonsiliasi:</span>
-            <span className="font-semibold text-emerald-600">Rp 0 (100% Seimbang)</span>
-          </div>
-        </Card>
-      </div>
-
-      {/* Control Bar: Mode Switcher, Batch Selector, Filters, Search */}
-      <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-        {/* Left: View Mode Toggle & Batch Selector */}
-        <div className="flex items-center gap-3 flex-wrap">
+      {/* ─── Control Bar: Filters, Search, View Mode ─── */}
+      <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
+        {/* Left: View Mode Toggle & Filters */}
+        <div className="flex items-center gap-2 flex-wrap">
           {/* Mode Switcher */}
-          <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-1">
+          <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5">
             <button
               onClick={() => setViewMode('rows')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
+              className={`px-3 py-1.5 text-[11px] font-semibold rounded-md transition-all ${
                 viewMode === 'rows'
                   ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-900'
+                  : 'text-gray-500 hover:text-gray-800'
               }`}
             >
               Per Baris ({filteredRows.length})
             </button>
             <button
               onClick={() => setViewMode('grouped_asset')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
+              className={`px-3 py-1.5 text-[11px] font-semibold rounded-md transition-all ${
                 viewMode === 'grouped_asset'
                   ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-900'
+                  : 'text-gray-500 hover:text-gray-800'
               }`}
             >
-              Per Asset ID Unik ({groupedAssetRows.length})
+              Per Asset ({groupedAssetRows.length})
             </button>
           </div>
 
@@ -582,12 +754,12 @@ export const ExceptionResolver: React.FC<ExceptionResolverProps> = ({
           <select
             value={selectedBatchId}
             onChange={(e) => setSelectedBatchId(e.target.value)}
-            className="text-xs font-medium border border-gray-200 rounded-lg px-3 py-2 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="text-[11px] font-medium border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <option value="">Semua Batch Aktif</option>
+            <option value="">Semua Batch</option>
             {batches.map((b) => (
               <option key={b.batchId} value={b.batchId}>
-                {b.dspCode} - {b.period} ({b.fileName})
+                {b.dspCode} - {b.period}
               </option>
             ))}
           </select>
@@ -596,7 +768,7 @@ export const ExceptionResolver: React.FC<ExceptionResolverProps> = ({
           <select
             value={selectedDsp}
             onChange={(e) => setSelectedDsp(e.target.value)}
-            className="text-xs font-medium border border-gray-200 rounded-lg px-3 py-2 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="text-[11px] font-medium border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">Semua DSP</option>
             <option value="YOUTUBE">YouTube</option>
@@ -609,43 +781,42 @@ export const ExceptionResolver: React.FC<ExceptionResolverProps> = ({
           <select
             value={selectedStatus}
             onChange={(e) => setSelectedStatus(e.target.value)}
-            className="text-xs font-medium border border-gray-200 rounded-lg px-3 py-2 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="text-[11px] font-medium border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">Semua Status</option>
-            <option value="stage1">⛔ Tahap 1: Asset ID</option>
-            <option value="stage2">⚠ Tahap 2: Writer</option>
-            <option value="stage3">ⓘ Tahap 3: Custom ID</option>
-            <option value="conflict">⇄ Konflik Validasi</option>
+            <option value="stage1">⛔ T-1 Asset</option>
+            <option value="stage2">⚠ T-2 Writer</option>
+            <option value="stage3">ⓘ T-3 Custom</option>
+            <option value="conflict">⇄ Konflik</option>
             <option value="on_hold">⏸ Ditahan</option>
             <option value="ignored">⊘ Diabaikan</option>
-            <option value="resolved">✓ Siap Re-process</option>
+            <option value="resolved">✓ Resolved</option>
           </select>
 
           {/* Aging Toggle */}
           <button
             onClick={() => setFilterAgingOnly((prev) => !prev)}
-            className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-all flex items-center gap-1.5 ${
+            className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border transition-all flex items-center gap-1 ${
               filterAgingOnly
-                ? 'bg-rose-50 border-rose-300 text-rose-700'
-                : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                ? 'bg-rose-50 border-rose-300 text-rose-700 shadow-sm'
+                : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
             }`}
           >
-            <span>⚠️</span>
-            <span>&gt; 30 Hari Menua</span>
+            🔥 &gt;30 hari
           </button>
         </div>
 
         {/* Right: Search Input */}
-        <div className="relative w-full md:w-64">
+        <div className="relative w-full md:w-56">
           <input
             type="text"
-            placeholder="Cari judul, Asset ID, Custom ID, writer..."
+            placeholder="Cari judul, asset, writer..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full text-xs border border-gray-200 rounded-lg pl-8 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50/50"
+            className="w-full text-[11px] border border-gray-200 rounded-lg pl-8 pr-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50/50"
           />
           <svg
-            className="w-4 h-4 text-gray-400 absolute left-2.5 top-2.5"
+            className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-[7px]"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -655,297 +826,325 @@ export const ExceptionResolver: React.FC<ExceptionResolverProps> = ({
         </div>
       </div>
 
-      {/* Bulk Action Toolbar (When rows are selected) */}
+      {/* ─── PB-4.5.2: Celebratory Readiness Banner when open issues = 0 ─── */}
+      {totalOpenIssues === 0 && (
+        <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-blue-600 text-white p-4 px-6 rounded-2xl shadow-lg shadow-emerald-500/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in slide-in-from-top-2 duration-300">
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-xs flex items-center justify-center text-xl shrink-0">
+              🎉
+            </div>
+            <div>
+              <div className="font-bold text-[15px] flex items-center gap-2">
+                <span>Semua Pengecualian Selesai Diselesaikan!</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/20 text-white uppercase tracking-wider">
+                  Siap Rilis
+                </span>
+              </div>
+              <p className="text-[12px] text-emerald-100 mt-0.5">
+                Batch ini telah bersih tanpa isu terbuka. Anda dapat melanjutkan ke Riwayat Batch untuk memverifikasi dan mendistribusikan royalti ke akun pencipta.
+              </p>
+            </div>
+          </div>
+          {onNavigateToBatchHistory && (
+            <button
+              onClick={onNavigateToBatchHistory}
+              className="px-4 py-2.5 bg-white text-emerald-800 hover:bg-emerald-50 font-bold rounded-xl text-xs shadow-md transition-all shrink-0 cursor-pointer flex items-center gap-2"
+            >
+              <span>Lanjutkan ke Distribusi (Riwayat Batch)</span>
+              <span>→</span>
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* ─── Bulk Action Toolbar ─── */}
       {selectedRowIds.length > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-center justify-between animate-fadeIn">
+        <div
+          className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl px-4 py-3 flex items-center justify-between"
+          style={{ animation: 'slideInRight 0.25s ease-out' }}
+        >
           <div className="flex items-center gap-3">
-            <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">
+            <span className="w-7 h-7 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center shadow-sm">
               {selectedRowIds.length}
             </span>
-            <span className="text-xs font-medium text-blue-900">
-              Baris terpilih untuk tindakan massal
+            <span className="text-xs font-semibold text-blue-900">
+              baris terpilih untuk tindakan massal
             </span>
           </div>
 
           <div className="flex items-center gap-2">
-            <Button
-              variant="secondary"
-              size="sm"
+            <button
               onClick={handleBulkHold}
-              className="bg-white border-amber-300 text-amber-800 hover:bg-amber-50 text-xs py-1"
+              className="px-3 py-1.5 rounded-lg border border-amber-300 bg-white text-xs font-semibold text-amber-700 hover:bg-amber-50 transition-all"
             >
-              ⏸ Tahan Terpilih
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
+              ⏸ Tahan
+            </button>
+            <button
               onClick={handleBulkIgnore}
-              className="bg-white border-gray-300 text-gray-700 hover:bg-gray-100 text-xs py-1"
+              className="px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-all"
             >
-              ⊘ Abaikan Terpilih
-            </Button>
+              ⊘ Abaikan
+            </button>
             <button
               onClick={() => setSelectedRowIds([])}
-              className="text-xs text-blue-700 underline hover:text-blue-900 ml-2"
+              className="text-xs text-blue-600 hover:text-blue-800 underline ml-1"
             >
-              Batal
+              Batal Seleksi
             </button>
           </div>
         </div>
       )}
 
-      {/* Main Table Content */}
-      <Card className="overflow-hidden border border-gray-200 shadow-sm bg-white">
-        {viewMode === 'rows' ? (
-          // TABLE MODE: PER BARIS
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="bg-gray-50/80 border-b border-gray-200 text-gray-500 font-semibold uppercase tracking-wider">
-                  <th className="py-3 px-4 w-10">
+      {/* ─── Main Content: Card-based rows or Grouped view ─── */}
+      {viewMode === 'rows' ? (
+        <div className="space-y-2">
+          {filteredRows.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center shadow-sm">
+              <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-emerald-50 flex items-center justify-center text-2xl">
+                🎉
+              </div>
+              <Typography variant="heading-3" className="text-gray-900 font-bold">
+                Tidak Ada Pengecualian
+              </Typography>
+              <Typography variant="body" className="text-gray-400 mt-1 text-sm">
+                Semua baris laporan telah cocok atau ditangani. Tidak ada pengecualian yang memenuhi filter saat ini.
+              </Typography>
+            </div>
+          ) : (
+            filteredRows.map((r) => {
+              const isSelected = selectedRowIds.includes(r.rowId);
+              const isAging = r.ageDays && r.ageDays > 30;
+              const isExpanded = expandedRowId === r.rowId;
+
+              return (
+                <div
+                  key={r.rowId}
+                  className={`bg-white rounded-xl border transition-all duration-200 overflow-hidden ${
+                    isSelected
+                      ? 'border-blue-300 shadow-sm ring-1 ring-blue-100'
+                      : isExpanded
+                      ? 'border-blue-200 shadow-md'
+                      : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
+                  }`}
+                >
+                  {/* ── Row Card Header ── */}
+                  <div className="flex items-center gap-3 px-4 py-3">
+                    {/* Checkbox */}
                     <input
                       type="checkbox"
-                      checked={
-                        filteredRows.length > 0 &&
-                        selectedRowIds.length === filteredRows.length
-                      }
-                      onChange={(e) => handleSelectAll(e.target.checked)}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                      checked={isSelected}
+                      onChange={() => handleToggleRow(r.rowId)}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer flex-shrink-0"
                     />
-                  </th>
-                  <th className="py-3 px-3">DSP & Batch</th>
-                  <th className="py-3 px-4">Metadata Baris Laporan</th>
-                  <th className="py-3 px-4">Status & Masalah Validasi</th>
-                  <th className="py-3 px-4 text-right">Pendapatan (IDR)</th>
-                  <th className="py-3 px-4 text-center">Aksi Resolver</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 text-gray-700">
-                {filteredRows.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="py-12 text-center text-gray-400">
-                      Tidak ada baris pengecualian yang cocok dengan filter saat ini.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredRows.map((r) => {
-                    const isSelected = selectedRowIds.includes(r.rowId);
-                    const isAging = r.ageDays && r.ageDays > 30;
 
-                    return (
-                      <tr
-                        key={r.rowId}
-                        className={`hover:bg-blue-50/30 transition-colors ${
-                          isSelected ? 'bg-blue-50/50' : ''
-                        }`}
-                      >
-                        {/* Checkbox */}
-                        <td className="py-3.5 px-4 align-top">
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => handleToggleRow(r.rowId)}
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer mt-1"
-                          />
-                        </td>
+                    {/* DSP Icon */}
+                    {renderDspIcon(r.dsp)}
 
-                        {/* DSP & Batch */}
-                        <td className="py-3.5 px-3 align-top whitespace-nowrap">
-                          <div className="font-semibold text-gray-900">{r.dsp}</div>
-                          <div className="text-[11px] text-gray-400 mt-0.5">
-                            Baris #{r.originalRow.rowIndex}
-                          </div>
-                          {r.ageDays !== undefined && (
-                            <span
-                              className={`inline-block mt-1 text-[10px] font-medium px-1.5 py-0.5 rounded ${
-                                isAging
-                                  ? 'bg-rose-100 text-rose-700 font-bold'
-                                  : 'bg-gray-100 text-gray-600'
-                              }`}
-                            >
-                              {r.ageDays} hari
-                            </span>
-                          )}
-                        </td>
+                    {/* Song Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-gray-900 text-sm truncate max-w-[280px]">
+                          {r.originalRow.songTitle || 'Tanpa Judul'}
+                        </span>
+                        {renderStatusBadge(r, true)}
+                        {isAging && (
+                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-100 text-rose-700 border border-rose-200">
+                            <span className="w-1 h-1 rounded-full bg-rose-500 animate-pulse"></span>
+                            {r.ageDays}hr
+                          </span>
+                        )}
+                        {r.version > 1 && (
+                          <span className="text-[9px] text-gray-400 bg-gray-50 px-1 rounded">v{r.version}</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5 text-[11px] text-gray-500 flex-wrap">
+                        <span>Writer: <span className="font-medium text-gray-700">{r.originalRow.writers || '-'}</span></span>
+                        <span className="text-gray-300">·</span>
+                        <span className="font-mono text-gray-400 text-[10px]">{r.originalRow.assetId}</span>
+                        {r.originalRow.customId && (
+                          <>
+                            <span className="text-gray-300">·</span>
+                            <span className="font-mono text-gray-400 text-[10px]">{r.originalRow.customId}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
 
-                        {/* Metadata Baris Laporan */}
-                        <td className="py-3.5 px-4 align-top max-w-xs">
-                          <div className="font-bold text-gray-900 text-sm leading-snug">
-                            {r.originalRow.songTitle || 'Tanpa Judul'}
-                          </div>
-                          <div className="text-[11px] text-gray-600 mt-1 flex items-center gap-1 flex-wrap">
-                            <span className="text-gray-400">Writer:</span>
-                            <span className="font-medium text-gray-800">
-                              {r.originalRow.writers || '-'}
-                            </span>
-                          </div>
-                          <div className="mt-1.5 flex items-center gap-2 flex-wrap text-[11px]">
-                            <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-700 border border-gray-200">
-                              Asset: {r.originalRow.assetId}
-                            </span>
-                            {r.originalRow.customId && (
-                              <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-600">
-                                Custom: {r.originalRow.customId}
-                              </span>
-                            )}
-                          </div>
-                        </td>
+                    {/* Revenue */}
+                    <div className="text-right flex-shrink-0 mr-2">
+                      <div className="font-extrabold text-gray-900 text-sm">{formatCurrency(r.originalRow.idrRev)}</div>
+                      <div className="text-[10px] text-gray-400">USD ${r.originalRow.incomeRev.toFixed(2)}</div>
+                    </div>
 
-                        {/* Status & Masalah Validasi */}
-                        <td className="py-3.5 px-4 align-top">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            {renderStatusBadge(r)}
-                            {r.version > 1 && (
-                              <span className="text-[10px] text-gray-400">
-                                (v{r.version})
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-xs text-gray-600 mt-1.5 leading-relaxed">
-                            {r.failureReason}
-                          </div>
+                    {/* Actions */}
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      {r.matchStatus === 'resolved' ? (
+                        <>
+                          <span className="text-[10px] text-emerald-600 font-bold px-2 py-1 bg-emerald-50 rounded-lg border border-emerald-200">✓</span>
+                          <button
+                            onClick={() => handleUndo(r.rowId)}
+                            className="text-[10px] text-gray-400 hover:text-rose-600 underline px-1"
+                          >
+                            Undo
+                          </button>
+                        </>
+                      ) : r.matchStatus === 'on_hold' || r.matchStatus === 'ignored' ? (
+                        <>
+                          <button
+                            onClick={() => toggleExpand(r.rowId)}
+                            className="px-2.5 py-1 text-[10px] font-semibold rounded-lg bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200 transition-all"
+                          >
+                            Detail
+                          </button>
+                          <button
+                            onClick={() => handleUndo(r.rowId)}
+                            className="text-[10px] text-gray-400 hover:text-gray-600 px-1"
+                          >
+                            Undo
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={() => toggleExpand(r.rowId)}
+                          className={`px-3 py-1.5 text-[11px] font-bold rounded-lg transition-all shadow-sm ${
+                            isExpanded
+                              ? 'bg-gray-200 text-gray-700'
+                              : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 hover:shadow-md'
+                          }`}
+                        >
+                          {isExpanded ? 'Tutup' : r.matchStatus === 'conflict' ? 'Selesaikan' : 'Resolve'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* ── Inline Expanded Resolver Panel ── */}
+                  {isExpanded && (
+                    <div
+                      className="border-t border-gray-100 bg-gradient-to-b from-gray-50/80 to-white px-5 py-4"
+                      style={{ animation: 'slideDown 0.25s ease-out' }}
+                    >
+                      {/* Show failure reason prominently */}
+                      <div className="flex items-start gap-2.5 mb-4">
+                        <div className="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center flex-shrink-0 text-sm font-bold mt-0.5">
+                          {r.matchStatus === 'conflict' ? '⇄' : r.failedStage === 1 ? '⛔' : r.failedStage === 2 ? '⚠' : 'ⓘ'}
+                        </div>
+                        <div>
+                          <div className="text-xs font-bold text-gray-900">Alasan Gagal</div>
+                          <div className="text-xs text-gray-600 mt-0.5 leading-relaxed">{r.failureReason}</div>
                           {r.resolutionReason && (
-                            <div className="text-[11px] text-emerald-700 mt-1 font-medium bg-emerald-50 px-2 py-1 rounded border border-emerald-100">
+                            <div className="mt-1.5 text-[11px] text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-100 inline-block">
                               Resolusi: {r.resolutionReason}
                             </div>
                           )}
                           {r.holdUntil && (
-                            <div className="text-[11px] text-blue-700 mt-1 font-medium">
-                              Ditahan s/d: {r.holdUntil}
+                            <div className="mt-1 text-[11px] text-blue-700 font-medium">
+                              📅 Ditahan s/d: {r.holdUntil}
                             </div>
                           )}
-                        </td>
+                        </div>
+                      </div>
 
-                        {/* Pendapatan (IDR) */}
-                        <td className="py-3.5 px-4 align-top text-right whitespace-nowrap">
-                          <div className="font-extrabold text-gray-900 text-sm">
-                            {formatCurrency(r.originalRow.idrRev)}
-                          </div>
-                          <div className="text-[11px] text-gray-400 mt-0.5">
-                            USD ${r.originalRow.incomeRev.toFixed(2)}
-                          </div>
-                        </td>
-
-                        {/* Aksi Resolver */}
-                        <td className="py-3.5 px-4 align-top text-center whitespace-nowrap">
-                          {r.matchStatus === 'resolved' ? (
-                            <div className="flex items-center justify-center gap-2">
-                              <span className="text-xs text-emerald-600 font-semibold">
-                                Terselesaikan
-                              </span>
-                              <button
-                                onClick={() => handleUndo(r.rowId)}
-                                className="text-xs text-gray-500 hover:text-rose-600 underline"
-                                title="Batalkan resolusi"
-                              >
-                                Batal
-                              </button>
-                            </div>
-                          ) : r.matchStatus === 'on_hold' || r.matchStatus === 'ignored' ? (
-                            <div className="flex items-center justify-center gap-2">
-                              <button
-                                onClick={() => handleOpenResolver(r)}
-                                className="px-2.5 py-1 text-xs font-semibold rounded bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
-                              >
-                                Ubah Resolusi
-                              </button>
-                              <button
-                                onClick={() => handleUndo(r.rowId)}
-                                className="text-xs text-gray-400 hover:text-gray-600"
-                                title="Kembalikan ke status aktif"
-                              >
-                                Undo
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="flex items-center justify-center gap-1.5">
-                              <Button
-                                size="sm"
-                                variant="primary"
-                                onClick={() => handleOpenResolver(r)}
-                                className="bg-blue-600 hover:bg-blue-700 text-xs py-1 px-3"
-                              >
-                                {r.matchStatus === 'conflict' ? 'Selesaikan Konflik' : 'Petakan (Resolver)'}
-                              </Button>
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          // GROUPED MODE: PER ASSET ID UNIK
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="bg-gray-50/80 border-b border-gray-200 text-gray-500 font-semibold uppercase tracking-wider">
-                  <th className="py-3 px-4">DSP & Asset ID Unik</th>
-                  <th className="py-3 px-4">Judul Lagu & Komposisi Writer</th>
-                  <th className="py-3 px-4 text-center">Jumlah Baris</th>
-                  <th className="py-3 px-4 text-right">Akumulasi Nilai IDR</th>
-                  <th className="py-3 px-4 text-center">Status</th>
-                  <th className="py-3 px-4 text-center">Aksi Petakan Global</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 text-gray-700">
-                {groupedAssetRows.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="py-12 text-center text-gray-400">
-                      Tidak ada Asset ID unik dalam pengecualian.
-                    </td>
-                  </tr>
-                ) : (
-                  groupedAssetRows.map((group) => {
-                    const representativeRow = group.rows[0];
-
-                    return (
-                      <tr key={`${group.dsp}::${group.assetId}`} className="hover:bg-blue-50/30 transition-colors">
-                        <td className="py-3.5 px-4 align-top whitespace-nowrap">
-                          <span className="font-bold text-gray-900">{group.dsp}</span>
-                          <div className="font-mono bg-gray-100 px-2 py-0.5 rounded text-gray-800 border border-gray-200 mt-1 inline-block">
-                            {group.assetId}
-                          </div>
-                        </td>
-                        <td className="py-3.5 px-4 align-top">
-                          <div className="font-bold text-gray-900 text-sm">{group.songTitle}</div>
-                          <div className="text-xs text-gray-500 mt-0.5">Writers: {group.writers}</div>
-                        </td>
-                        <td className="py-3.5 px-4 align-top text-center">
-                          <span className="inline-block px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800">
-                            {group.rows.length} baris
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-4 align-top text-right">
-                          <span className="font-extrabold text-gray-900 text-sm">
-                            {formatCurrency(group.totalRevenue)}
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-4 align-top text-center">
-                          {renderStatusBadge(representativeRow)}
-                        </td>
-                        <td className="py-3.5 px-4 align-top text-center">
+                      {/* Quick Action Buttons for inline resolve */}
+                      {(r.matchStatus === 'unmatched' || r.matchStatus === 'conflict') && (
+                        <div className="flex items-center gap-2 flex-wrap">
                           <Button
                             size="sm"
                             variant="primary"
-                            onClick={() => handleOpenResolver(representativeRow)}
-                            className="bg-blue-600 hover:bg-blue-700 text-xs py-1 px-3"
+                            onClick={() => handleOpenResolver(r)}
+                            className="bg-blue-600 hover:bg-blue-700 text-[11px] py-1.5 px-4 rounded-lg font-bold"
                           >
-                            Petakan {group.rows.length} Baris Sekaligus
+                            🔧 Buka Resolver Penuh
                           </Button>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
+                          <button
+                            onClick={() => {
+                              setActiveModalRow(r);
+                              setActiveModalType('hold');
+                            }}
+                            className="px-3 py-1.5 rounded-lg border border-amber-200 bg-amber-50 text-[11px] font-semibold text-amber-700 hover:bg-amber-100 transition-all"
+                          >
+                            ⏸ Tahan
+                          </button>
+                          <button
+                            onClick={() => {
+                              setActiveModalRow(r);
+                              setActiveModalType('ignore');
+                            }}
+                            className="px-3 py-1.5 rounded-lg border border-gray-200 bg-gray-50 text-[11px] font-semibold text-gray-600 hover:bg-gray-100 transition-all"
+                          >
+                            ⊘ Abaikan
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      ) : (
+        // GROUPED MODE: PER ASSET ID UNIK
+        <div className="space-y-2">
+          {groupedAssetRows.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center shadow-sm">
+              <Typography variant="heading-3" className="text-gray-900 font-bold">
+                Tidak ada pengecualian per Asset
+              </Typography>
+              <Typography variant="body" className="text-gray-400 mt-1 text-sm">
+                Tidak ada Asset ID unik dalam pengecualian yang cocok dengan filter saat ini.
+              </Typography>
+            </div>
+          ) : (
+            groupedAssetRows.map((group) => {
+              const representativeRow = group.rows[0];
+
+              return (
+                <div
+                  key={`${group.dsp}::${group.assetId}`}
+                  className="bg-white rounded-xl border border-gray-200 hover:border-gray-300 hover:shadow-sm transition-all"
+                >
+                  <div className="flex items-center gap-3 px-4 py-3">
+                    {/* DSP Icon */}
+                    {renderDspIcon(group.dsp)}
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-gray-900 text-sm truncate">{group.songTitle}</span>
+                        {renderStatusBadge(representativeRow, true)}
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5 text-[11px] text-gray-500 flex-wrap">
+                        <span>Writers: <span className="font-medium text-gray-700">{group.writers}</span></span>
+                        <span className="text-gray-300">·</span>
+                        <span className="font-mono text-gray-400 text-[10px]">{group.assetId}</span>
+                      </div>
+                    </div>
+
+                    {/* Aggregate */}
+                    <div className="flex items-center gap-4 flex-shrink-0">
+                      <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                        {group.rows.length} baris
+                      </span>
+                      <div className="text-right">
+                        <div className="font-extrabold text-gray-900 text-sm">{formatCurrency(group.totalRevenue)}</div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        onClick={() => handleOpenResolver(representativeRow)}
+                        className="bg-blue-600 hover:bg-blue-700 text-[11px] py-1.5 px-3 rounded-lg font-bold"
+                      >
+                        Petakan Semua
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
 
       {/* ─── MODAL RESOLVER TAHAP 1: ASSET ID ─── */}
       {activeModalType === 'stage1' && activeModalRow && (
@@ -959,8 +1158,9 @@ export const ExceptionResolver: React.FC<ExceptionResolverProps> = ({
           onResolved={(count) => {
             setDataVersion((v) => v + 1);
             if (onRefreshData) onRefreshData();
+            setExpandedRowId(null);
             showToast(
-              `Asset ID berhasil dipetakan ke katalog LOKA (${count} baris diperbarui ke status Siap Re-process).`,
+              `Asset ID berhasil dipetakan ke katalog LOKA (${count} baris siap Re-process).`,
               'success'
             );
             setActiveModalType(null);
@@ -983,6 +1183,7 @@ export const ExceptionResolver: React.FC<ExceptionResolverProps> = ({
           onResolved={(count) => {
             setDataVersion((v) => v + 1);
             if (onRefreshData) onRefreshData();
+            setExpandedRowId(null);
             showToast(
               `Alias writer berhasil didaftarkan dan dihubungkan ke IPBASE NO (${count} baris diperbarui).`,
               'success'
@@ -1007,6 +1208,7 @@ export const ExceptionResolver: React.FC<ExceptionResolverProps> = ({
           onResolved={(count) => {
             setDataVersion((v) => v + 1);
             if (onRefreshData) onRefreshData();
+            setExpandedRowId(null);
             showToast(
               `Custom ID berhasil diperbaiki ke Song ID katalog LOKA (${count} baris siap re-process).`,
               'success'
@@ -1031,6 +1233,7 @@ export const ExceptionResolver: React.FC<ExceptionResolverProps> = ({
           onResolved={() => {
             setDataVersion((v) => v + 1);
             if (onRefreshData) onRefreshData();
+            setExpandedRowId(null);
             showToast(
               'Konflik validasi berhasil diselesaikan berdasarkan opsi terpilih.',
               'success'
@@ -1055,8 +1258,9 @@ export const ExceptionResolver: React.FC<ExceptionResolverProps> = ({
             holdRow(activeModalRow.rowId, reason, holdUntil);
             setDataVersion((v) => v + 1);
             if (onRefreshData) onRefreshData();
+            setExpandedRowId(null);
             showToast(
-              `Baris berhasil Ditahan hingga ${holdUntil}. Royalti tidak akan didistribusikan sementara.`,
+              `Baris berhasil Ditahan hingga ${holdUntil}.`,
               'info'
             );
             setActiveModalType(null);
@@ -1077,6 +1281,7 @@ export const ExceptionResolver: React.FC<ExceptionResolverProps> = ({
             ignoreRow(activeModalRow.rowId, reason);
             setDataVersion((v) => v + 1);
             if (onRefreshData) onRefreshData();
+            setExpandedRowId(null);
             showToast(
               'Baris berhasil ditandai sebagai Diabaikan (Non-katalog LOKA).',
               'info'
@@ -1089,43 +1294,54 @@ export const ExceptionResolver: React.FC<ExceptionResolverProps> = ({
 
       {/* ─── MODAL ASYNC RE-PROCESS PROGRESS ─── */}
       {isReprocessing && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 animate-scaleIn text-center">
-            <div className="w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mx-auto mb-4">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div
+            className="bg-white rounded-2xl max-w-md w-full p-8 shadow-2xl border border-gray-100 text-center"
+            style={{ animation: 'scaleIn 0.25s ease-out' }}
+          >
+            <div className={`w-16 h-16 rounded-2xl ${reprocessProgress < 100 ? 'bg-blue-100 text-blue-600' : 'bg-emerald-100 text-emerald-600'} flex items-center justify-center mx-auto mb-5`}>
               <svg
-                className={`w-6 h-6 ${reprocessProgress < 100 ? 'animate-spin' : ''}`}
+                className={`w-8 h-8 ${reprocessProgress < 100 ? 'animate-spin' : ''}`}
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                />
+                {reprocessProgress < 100 ? (
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                )}
               </svg>
             </div>
 
             <Typography variant="heading-3" className="font-bold text-gray-900">
-              {reprocessProgress < 100 ? 'Menjalankan Re-process Batch...' : 'Re-process Berhasil!'}
+              {reprocessProgress < 100 ? 'Menjalankan Re-process...' : 'Re-process Berhasil! 🎉'}
             </Typography>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-500 mt-2">
               {reprocessProgress < 100
-                ? 'Merekalkulasi baris terselesaikan, menerapkan 70% share pencipta & 30% publisher...'
+                ? 'Merekalkulasi baris terselesaikan, menerapkan 70:30 split pencipta-publisher...'
                 : 'Distribusi royalti telah diperbarui dan diverifikasi seimbang.'}
             </p>
 
             {/* Progress Bar */}
-            <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden my-5">
+            <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden my-6">
               <div
-                className="bg-blue-600 h-full transition-all duration-300 rounded-full"
+                className={`h-full transition-all duration-500 rounded-full ${
+                  reprocessProgress < 100
+                    ? 'bg-gradient-to-r from-blue-500 to-indigo-500'
+                    : 'bg-gradient-to-r from-emerald-400 to-emerald-600'
+                }`}
                 style={{ width: `${reprocessProgress}%` }}
               ></div>
             </div>
 
             {reprocessResult && (
-              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-left text-xs space-y-2 mb-4">
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-left text-xs space-y-2.5 mb-5">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Baris Diproses:</span>
                   <span className="font-bold text-gray-900">{reprocessResult.reprocessedCount} baris</span>
@@ -1136,9 +1352,9 @@ export const ExceptionResolver: React.FC<ExceptionResolverProps> = ({
                     {formatCurrency(reprocessResult.distributedRevenue)}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Selisih Rekonsiliasi:</span>
-                  <span className="font-bold text-emerald-700">Rp 0 (100% Cocok)</span>
+                <div className="flex justify-between pt-2 border-t border-emerald-200">
+                  <span className="text-gray-600 font-semibold">Selisih Rekonsiliasi:</span>
+                  <span className="font-bold text-emerald-700">Rp 0 (100% Cocok) ✓</span>
                 </div>
               </div>
             )}
@@ -1150,7 +1366,7 @@ export const ExceptionResolver: React.FC<ExceptionResolverProps> = ({
                   setIsReprocessing(false);
                   setReprocessResult(null);
                 }}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-sm py-2"
+                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-sm py-2.5 rounded-xl font-bold"
               >
                 Selesai & Tutup
               </Button>
@@ -1161,40 +1377,63 @@ export const ExceptionResolver: React.FC<ExceptionResolverProps> = ({
 
       {/* ─── AUDIT TRAIL DRAWER ─── */}
       {showAuditLogs && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex justify-end">
-          <div className="bg-white w-full max-w-lg h-full p-6 shadow-2xl flex flex-col justify-between overflow-y-auto animate-slideLeft">
-            <div>
-              <div className="flex items-center justify-between pb-4 border-b border-gray-200">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">📜</span>
-                  <Typography variant="heading-3" className="font-bold text-gray-900">
-                    Audit Trail & Riwayat Resolusi
-                  </Typography>
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex justify-end">
+          <div
+            className="bg-white w-full max-w-md h-full shadow-2xl flex flex-col overflow-hidden"
+            style={{ animation: 'slideLeft 0.3s ease-out' }}
+          >
+            {/* Drawer Header */}
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center text-sm">
+                  📋
                 </div>
-                <button
-                  onClick={() => setShowAuditLogs(false)}
-                  className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100"
-                >
-                  ✕
-                </button>
+                <div>
+                  <Typography variant="heading-3" className="font-bold text-gray-900 text-base">
+                    Audit Trail
+                  </Typography>
+                  <div className="text-[10px] text-gray-400">{auditLogs.length} catatan perubahan</div>
+                </div>
               </div>
+              <button
+                onClick={() => setShowAuditLogs(false)}
+                className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
 
-              <div className="mt-4 space-y-3">
-                {auditLogs.length === 0 ? (
-                  <div className="text-center py-12 text-gray-400 text-xs">
-                    Belum ada catatan riwayat perubahan resolusi.
-                  </div>
-                ) : (
-                  auditLogs.slice().reverse().map((log: AuditLog) => (
+            {/* Drawer Body */}
+            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+              {auditLogs.length === 0 ? (
+                <div className="text-center py-16 text-gray-400 text-xs">
+                  <div className="text-3xl mb-3">📭</div>
+                  Belum ada catatan riwayat perubahan resolusi.
+                </div>
+              ) : (
+                auditLogs.slice().reverse().map((log: AuditLog) => {
+                  const actionColors: Record<string, string> = {
+                    resolve: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                    hold: 'bg-blue-50 text-blue-700 border-blue-200',
+                    ignore: 'bg-gray-100 text-gray-600 border-gray-200',
+                    undo: 'bg-amber-50 text-amber-700 border-amber-200',
+                    reprocess: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+                    auto_map: 'bg-cyan-50 text-cyan-700 border-cyan-200',
+                  };
+                  const colorClass = actionColors[log.action] || 'bg-gray-50 text-gray-600 border-gray-200';
+
+                  return (
                     <div
                       key={log.id}
-                      className="p-3.5 rounded-xl border border-gray-100 bg-gray-50/70 text-xs space-y-1.5"
+                      className="p-3 rounded-xl border border-gray-100 bg-white text-xs space-y-1.5 hover:shadow-sm transition-all"
                     >
                       <div className="flex items-center justify-between">
-                        <span className="font-bold text-gray-800 uppercase tracking-wider text-[10px] px-2 py-0.5 rounded bg-white border border-gray-200">
+                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border uppercase tracking-wider ${colorClass}`}>
                           {log.action}
                         </span>
-                        <span className="text-[11px] text-gray-400">
+                        <span className="text-[10px] text-gray-400">
                           {new Date(log.timestamp).toLocaleTimeString('id-ID', {
                             hour: '2-digit',
                             minute: '2-digit',
@@ -1204,32 +1443,54 @@ export const ExceptionResolver: React.FC<ExceptionResolverProps> = ({
                         </span>
                       </div>
                       <div className="text-gray-700">
-                        <span className="font-semibold text-gray-900">{log.actorId}</span> memproses target{' '}
-                        <code className="bg-gray-200 px-1 py-0.5 rounded text-[11px]">
+                        <span className="font-semibold text-gray-900">{log.actorId}</span>{' '}
+                        <span className="text-gray-400">→</span>{' '}
+                        <code className="bg-gray-50 px-1 py-0.5 rounded text-[10px] font-mono text-gray-600 border border-gray-100">
                           {log.targetId}
                         </code>
                       </div>
                       {log.reason && (
-                        <div className="text-gray-500 italic">Alasan: "{log.reason}"</div>
+                        <div className="text-gray-500 italic text-[11px]">"{log.reason}"</div>
                       )}
                     </div>
-                  ))
-                )}
-              </div>
+                  );
+                })
+              )}
             </div>
 
-            <div className="pt-4 border-t border-gray-200 mt-6">
+            {/* Drawer Footer */}
+            <div className="px-5 py-3 border-t border-gray-100 flex-shrink-0">
               <Button
                 variant="secondary"
                 onClick={() => setShowAuditLogs(false)}
-                className="w-full text-xs py-2"
+                className="w-full text-xs py-2 rounded-xl"
               >
-                Tutup Audit Trail
+                Tutup
               </Button>
             </div>
           </div>
         </div>
       )}
+
+      {/* ─── CSS Animations ─── */}
+      <style>{`
+        @keyframes slideInRight {
+          from { opacity: 0; transform: translateX(20px); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes slideDown {
+          from { opacity: 0; max-height: 0; }
+          to { opacity: 1; max-height: 500px; }
+        }
+        @keyframes scaleIn {
+          from { opacity: 0; transform: scale(0.95); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        @keyframes slideLeft {
+          from { transform: translateX(100%); }
+          to { transform: translateX(0); }
+        }
+      `}</style>
     </div>
   );
 };
@@ -1260,6 +1521,7 @@ const Stage1ResolverModal: React.FC<Stage1ResolverModalProps> = ({
   const [scope, setScope] = useState<ResolutionScope>('all_open_batches');
   const [savePermanent, setSavePermanent] = useState<boolean>(true);
   const [notes, setNotes] = useState<string>('');
+  const [step, setStep] = useState(1);
 
   const selectedSong = catalogSongs.find((s) => s.songId === selectedSongId);
 
@@ -1272,172 +1534,234 @@ const Stage1ResolverModal: React.FC<Stage1ResolverModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-gray-100 animate-scaleIn space-y-5">
-        <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-          <div className="flex items-center gap-2">
-            <span className="w-8 h-8 rounded-lg bg-rose-100 text-rose-700 flex items-center justify-center font-bold text-sm">
-              ⛔
-            </span>
-            <div>
-              <Typography variant="heading-3" className="font-bold text-gray-900">
-                Petakan Asset ID (Tahap 1)
-              </Typography>
-              <div className="text-xs text-gray-500">
-                DSP {row.dsp} &bull; Asset ID: <code className="font-mono font-bold text-gray-800">{row.originalRow.assetId}</code>
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl max-w-xl w-full shadow-2xl border border-gray-100 overflow-hidden" style={{ animation: 'scaleIn 0.25s ease-out' }}>
+        {/* Modal Header */}
+        <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-rose-50 to-white">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center text-lg">
+                ⛔
               </div>
-            </div>
-          </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
-        </div>
-
-        {/* Source Row Summary Card */}
-        <div className="bg-gray-50 rounded-xl p-3.5 border border-gray-200 text-xs space-y-1.5">
-          <div className="flex justify-between">
-            <span className="text-gray-500">Judul di Laporan DSP:</span>
-            <span className="font-bold text-gray-900">{row.originalRow.songTitle}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-500">Pencipta di Laporan:</span>
-            <span className="font-medium text-gray-800">{row.originalRow.writers}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-500">Nilai Tertahan:</span>
-            <span className="font-bold text-emerald-700">
-              Rp {Math.round(row.originalRow.idrRev).toLocaleString('id-ID')}
-            </span>
-          </div>
-        </div>
-
-        {/* Suggestion Candidates */}
-        <div>
-          <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-            Pilih Lagu Resmi dari Master Hak LOKA:
-          </label>
-          <select
-            value={selectedSongId}
-            onChange={(e) => setSelectedSongId(e.target.value)}
-            className="w-full text-xs border border-gray-300 rounded-lg p-2.5 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            {catalogSongs.map((s) => (
-              <option key={s.songId} value={s.songId}>
-                [{s.songId}] {s.songTitle} &bull; Writers: {s.writers.map((w) => w.ipName).join(', ')}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Song Rights Preview Card */}
-        {selectedSong && (
-          <div className="bg-blue-50/60 rounded-xl p-3.5 border border-blue-200 text-xs space-y-2">
-            <div className="font-semibold text-blue-900 flex items-center justify-between">
-              <span>Komposisi Hak Pembagian (70% Pencipta / 30% Publisher):</span>
-              <span className="text-[11px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-mono">
-                {selectedSong.songId}
-              </span>
-            </div>
-            <div className="space-y-1">
-              {selectedSong.writers.map((w) => (
-                <div key={w.ipbaseNo} className="flex justify-between text-gray-700">
-                  <span>{w.ipName} ({w.ipbaseNo}):</span>
-                  <span className="font-bold">{w.mecOwn}% Mechanical</span>
+              <div>
+                <div className="font-bold text-gray-900 text-sm">Petakan Asset ID (Tahap 1)</div>
+                <div className="text-[11px] text-gray-500 mt-0.5">
+                  {row.dsp} · <code className="font-mono font-bold text-gray-700">{row.originalRow.assetId}</code>
                 </div>
-              ))}
+              </div>
             </div>
+            <button onClick={onClose} className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
           </div>
-        )}
 
-        {/* Scope Selector */}
-        <div className="space-y-2 text-xs">
-          <label className="block font-semibold text-gray-700">Cakupan Resolusi:</label>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setScope('all_open_batches')}
-              className={`p-3 rounded-lg border text-left transition-all ${
-                scope === 'all_open_batches'
-                  ? 'border-blue-600 bg-blue-50/50 text-blue-900 font-semibold ring-1 ring-blue-600'
-                  : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              <div className="font-bold">Semua Batch Aktif (Rekomendasi)</div>
-              <div className="text-[11px] text-gray-500 mt-0.5">
-                Petakan Asset ID ini ke seluruh baris laporan dengan Asset ID yang sama
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setScope('row')}
-              className={`p-3 rounded-lg border text-left transition-all ${
-                scope === 'row'
-                  ? 'border-blue-600 bg-blue-50/50 text-blue-900 font-semibold ring-1 ring-blue-600'
-                  : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              <div className="font-bold">Hanya Baris Ini Saja</div>
-              <div className="text-[11px] text-gray-500 mt-0.5">
-                Override sekali pakai pada baris #{row.originalRow.rowIndex}
-              </div>
-            </button>
+          {/* Step indicator */}
+          <div className="flex items-center gap-2 mt-3">
+            {[1, 2, 3].map((s) => (
+              <React.Fragment key={s}>
+                <button
+                  onClick={() => setStep(s)}
+                  className={`w-7 h-7 rounded-full text-[10px] font-bold flex items-center justify-center transition-all ${
+                    step === s
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : step > s
+                      ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                      : 'bg-gray-100 text-gray-400 border border-gray-200'
+                  }`}
+                >
+                  {step > s ? '✓' : s}
+                </button>
+                {s < 3 && <div className={`flex-1 h-0.5 rounded ${step > s ? 'bg-emerald-300' : 'bg-gray-200'}`}></div>}
+              </React.Fragment>
+            ))}
           </div>
         </div>
 
-        {/* Permanent Registry Checkbox */}
-        <label className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={savePermanent}
-            onChange={(e) => setSavePermanent(e.target.checked)}
-            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-          />
-          <span>Simpan pemetaan ini ke tabel Master DSP Asset ID agar laporan bulan berikutnya cocok otomatis</span>
-        </label>
+        {/* Modal Body */}
+        <div className="px-6 py-5 space-y-5">
+          {step === 1 && (
+            <>
+              {/* Source Row Summary */}
+              <div className="bg-gray-50 rounded-xl p-4 border border-gray-200 text-xs space-y-2">
+                <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-2">Laporan DSP</div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Judul:</span>
+                  <span className="font-bold text-gray-900">{row.originalRow.songTitle}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Pencipta:</span>
+                  <span className="font-medium text-gray-800">{row.originalRow.writers}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Nilai Tertahan:</span>
+                  <span className="font-bold text-emerald-700">
+                    Rp {Math.round(row.originalRow.idrRev).toLocaleString('id-ID')}
+                  </span>
+                </div>
+              </div>
 
-        {/* Notes Input */}
-        <div>
-          <label className="block text-xs font-semibold text-gray-700 mb-1">Catatan Resolusi (Opsional):</label>
-          <input
-            type="text"
-            placeholder="Contoh: Asset ID versi remaster akustik resmi dari YouTube CMS"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            className="w-full text-xs border border-gray-200 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
+              {/* Song selector */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                  Pilih Lagu dari Master Hak LOKA:
+                </label>
+                <select
+                  value={selectedSongId}
+                  onChange={(e) => setSelectedSongId(e.target.value)}
+                  className="w-full text-xs border border-gray-300 rounded-xl p-2.5 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {catalogSongs.map((s) => (
+                    <option key={s.songId} value={s.songId}>
+                      [{s.songId}] {s.songTitle} · {s.writers.map((w) => w.ipName).join(', ')}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Rights Preview */}
+              {selectedSong && (
+                <div className="bg-blue-50/50 rounded-xl p-3.5 border border-blue-200 text-xs space-y-2">
+                  <div className="font-semibold text-blue-900 flex items-center justify-between">
+                    <span>Pembagian Hak (70% Pencipta / 30% Publisher):</span>
+                    <span className="text-[10px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded-lg font-mono">
+                      {selectedSong.songId}
+                    </span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {selectedSong.writers.map((w) => (
+                      <div key={w.ipbaseNo} className="flex justify-between items-center text-gray-700">
+                        <div>
+                          <span className="font-medium">{w.ipName}</span>
+                          <span className="text-gray-400 ml-1.5 text-[10px]">({w.ipbaseNo})</span>
+                        </div>
+                        <span className="font-bold text-blue-800">{w.mecOwn}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {step === 2 && (
+            <>
+              {/* Scope Selector */}
+              <div className="space-y-2 text-xs">
+                <label className="block font-semibold text-gray-700">Cakupan Resolusi:</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setScope('all_open_batches')}
+                    className={`p-3.5 rounded-xl border-2 text-left transition-all ${
+                      scope === 'all_open_batches'
+                        ? 'border-blue-500 bg-blue-50/50 shadow-sm'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="font-bold text-gray-900">🌐 Semua Batch</div>
+                    <div className="text-[10px] text-gray-500 mt-1 leading-relaxed">
+                      Petakan Asset ID ini ke seluruh baris laporan yang sama
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setScope('row')}
+                    className={`p-3.5 rounded-xl border-2 text-left transition-all ${
+                      scope === 'row'
+                        ? 'border-blue-500 bg-blue-50/50 shadow-sm'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="font-bold text-gray-900">📌 Hanya Baris Ini</div>
+                    <div className="text-[10px] text-gray-500 mt-1 leading-relaxed">
+                      Override sekali pakai pada baris #{row.originalRow.rowIndex}
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              {/* Permanent */}
+              <label className="flex items-start gap-2.5 text-xs text-gray-700 cursor-pointer bg-gray-50 rounded-xl p-3 border border-gray-200">
+                <input
+                  type="checkbox"
+                  checked={savePermanent}
+                  onChange={(e) => setSavePermanent(e.target.checked)}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mt-0.5"
+                />
+                <div>
+                  <div className="font-semibold text-gray-800">Simpan ke Master DSP Asset</div>
+                  <div className="text-[10px] text-gray-500 mt-0.5">Laporan bulan berikutnya akan cocok otomatis</div>
+                </div>
+              </label>
+            </>
+          )}
+
+          {step === 3 && (
+            <>
+              {/* Notes */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Catatan Resolusi (Opsional):</label>
+                <textarea
+                  rows={3}
+                  placeholder="Contoh: Asset ID versi remaster akustik resmi dari YouTube CMS"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="w-full text-xs border border-gray-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                />
+              </div>
+
+              {/* Summary */}
+              <div className="bg-emerald-50/50 rounded-xl p-3.5 border border-emerald-200 text-xs space-y-1.5">
+                <div className="text-[10px] text-emerald-700 font-bold uppercase tracking-wider">Ringkasan Resolusi</div>
+                <div className="flex justify-between"><span className="text-gray-600">Lagu:</span><span className="font-bold text-gray-900">{selectedSong?.songTitle}</span></div>
+                <div className="flex justify-between"><span className="text-gray-600">Cakupan:</span><span className="font-medium">{scope === 'all_open_batches' ? 'Semua batch' : 'Hanya baris ini'}</span></div>
+                <div className="flex justify-between"><span className="text-gray-600">Permanen:</span><span className="font-medium">{savePermanent ? 'Ya' : 'Tidak'}</span></div>
+              </div>
+            </>
+          )}
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+        {/* Modal Footer */}
+        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={onHoldClick}
-              className="text-xs text-amber-700 hover:underline"
-            >
-              ⏸ Tahan Baris
+            <button type="button" onClick={onHoldClick} className="text-xs text-amber-600 hover:text-amber-800 font-medium">
+              ⏸ Tahan
             </button>
-            <span className="text-gray-300">&bull;</span>
-            <button
-              type="button"
-              onClick={onIgnoreClick}
-              className="text-xs text-gray-500 hover:underline"
-            >
-              ⊘ Abaikan (Bukan LOKA)
+            <span className="text-gray-300">·</span>
+            <button type="button" onClick={onIgnoreClick} className="text-xs text-gray-500 hover:text-gray-700 font-medium">
+              ⊘ Abaikan
             </button>
           </div>
 
           <div className="flex items-center gap-2">
-            <Button variant="secondary" size="sm" onClick={onClose} className="text-xs py-1.5 px-3">
+            {step > 1 && (
+              <Button variant="secondary" size="sm" onClick={() => setStep((s) => s - 1)} className="text-xs py-1.5 px-3 rounded-lg">
+                ← Kembali
+              </Button>
+            )}
+            <Button variant="secondary" size="sm" onClick={onClose} className="text-xs py-1.5 px-3 rounded-lg">
               Batal
             </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={handleSubmit}
-              className="bg-blue-600 hover:bg-blue-700 text-xs py-1.5 px-4 font-semibold"
-            >
-              Simpan Resolusi
-            </Button>
+            {step < 3 ? (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setStep((s) => s + 1)}
+                className="bg-blue-600 hover:bg-blue-700 text-xs py-1.5 px-4 font-bold rounded-lg"
+              >
+                Lanjut →
+              </Button>
+            ) : (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleSubmit}
+                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-xs py-1.5 px-4 font-bold rounded-lg"
+              >
+                ✓ Simpan Resolusi
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -1489,114 +1813,98 @@ const Stage2ResolverModal: React.FC<Stage2ResolverModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-gray-100 animate-scaleIn space-y-5">
-        <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-          <div className="flex items-center gap-2">
-            <span className="w-8 h-8 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-sm">
-              ⚠
-            </span>
-            <div>
-              <Typography variant="heading-3" className="font-bold text-gray-900">
-                Daftarkan Alias Writer (Tahap 2)
-              </Typography>
-              <div className="text-xs text-gray-500">
-                Nama tidak dikenal: <span className="font-semibold text-rose-600">"{unmappedName}"</span>
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-gray-100 overflow-hidden" style={{ animation: 'scaleIn 0.25s ease-out' }}>
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-amber-50 to-white">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center text-lg">⚠</div>
+              <div>
+                <div className="font-bold text-gray-900 text-sm">Daftarkan Alias Writer (Tahap 2)</div>
+                <div className="text-[11px] text-gray-500 mt-0.5">
+                  Nama tidak dikenal: <span className="font-bold text-rose-600">"{unmappedName}"</span>
+                </div>
               </div>
             </div>
-          </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
-        </div>
-
-        <div className="bg-amber-50/70 rounded-xl p-3.5 border border-amber-200 text-xs space-y-1 text-gray-700">
-          <div>Laporan dari <strong>{row.dsp}</strong> menggunakan nama variasi/alias yang belum terhubung ke database hak cipta.</div>
-        </div>
-
-        <div>
-          <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-            Pilih Member Resmi LOKA (IPBASE NO):
-          </label>
-          <select
-            value={selectedIpbaseNo}
-            onChange={(e) => setSelectedIpbaseNo(e.target.value)}
-            className="w-full text-xs border border-gray-300 rounded-lg p-2.5 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            {masterWriters.map((w) => (
-              <option key={w.ipbaseNo} value={w.ipbaseNo}>
-                {w.ipName} (IPBASE: {w.ipbaseNo})
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="space-y-2 text-xs">
-          <label className="block font-semibold text-gray-700">Cakupan Alias:</label>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setScope('all_open_batches')}
-              className={`p-3 rounded-lg border text-left transition-all ${
-                scope === 'all_open_batches'
-                  ? 'border-blue-600 bg-blue-50/50 text-blue-900 font-semibold ring-1 ring-blue-600'
-                  : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              <div className="font-bold">Semua Batch & Masa Depan</div>
-              <div className="text-[11px] text-gray-500 mt-0.5">
-                Simpan permanen sebagai alias nama resmi
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setScope('row')}
-              className={`p-3 rounded-lg border text-left transition-all ${
-                scope === 'row'
-                  ? 'border-blue-600 bg-blue-50/50 text-blue-900 font-semibold ring-1 ring-blue-600'
-                  : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              <div className="font-bold">Hanya Baris Ini</div>
-              <div className="text-[11px] text-gray-500 mt-0.5">
-                Terapkan pada baris #{row.originalRow.rowIndex} saja
-              </div>
+            <button onClick={onClose} className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
           </div>
         </div>
 
-        <div>
-          <label className="block text-xs font-semibold text-gray-700 mb-1">Alasan Alias:</label>
-          <input
-            type="text"
-            placeholder="Contoh: Singkatan nama resmi pencipta di platform streaming"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            className="w-full text-xs border border-gray-200 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
+        {/* Body */}
+        <div className="px-6 py-5 space-y-4">
+          <div className="bg-amber-50/60 rounded-xl p-3 border border-amber-200 text-xs text-gray-700">
+            Laporan dari <strong>{row.dsp}</strong> menggunakan nama variasi/alias yang belum terhubung ke database hak cipta.
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+              Pilih Member Resmi LOKA (IPBASE NO):
+            </label>
+            <select
+              value={selectedIpbaseNo}
+              onChange={(e) => setSelectedIpbaseNo(e.target.value)}
+              className="w-full text-xs border border-gray-300 rounded-xl p-2.5 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {masterWriters.map((w) => (
+                <option key={w.ipbaseNo} value={w.ipbaseNo}>
+                  {w.ipName} (IPBASE: {w.ipbaseNo})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-2 text-xs">
+            <label className="block font-semibold text-gray-700">Cakupan Alias:</label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setScope('all_open_batches')}
+                className={`p-3 rounded-xl border-2 text-left transition-all ${
+                  scope === 'all_open_batches' ? 'border-blue-500 bg-blue-50/50 shadow-sm' : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className="font-bold text-gray-900">🌐 Semua Batch & Masa Depan</div>
+                <div className="text-[10px] text-gray-500 mt-0.5">Simpan sebagai alias resmi permanen</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setScope('row')}
+                className={`p-3 rounded-xl border-2 text-left transition-all ${
+                  scope === 'row' ? 'border-blue-500 bg-blue-50/50 shadow-sm' : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className="font-bold text-gray-900">📌 Hanya Baris Ini</div>
+                <div className="text-[10px] text-gray-500 mt-0.5">Baris #{row.originalRow.rowIndex} saja</div>
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">Alasan Alias:</label>
+            <input
+              type="text"
+              placeholder="Contoh: Singkatan nama resmi pencipta di platform streaming"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="w-full text-xs border border-gray-200 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
         </div>
 
-        <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <button type="button" onClick={onHoldClick} className="text-xs text-amber-700 hover:underline">
-              ⏸ Tahan
-            </button>
-            <span className="text-gray-300">&bull;</span>
-            <button type="button" onClick={onIgnoreClick} className="text-xs text-gray-500 hover:underline">
-              ⊘ Abaikan
-            </button>
+            <button type="button" onClick={onHoldClick} className="text-xs text-amber-600 hover:text-amber-800 font-medium">⏸ Tahan</button>
+            <span className="text-gray-300">·</span>
+            <button type="button" onClick={onIgnoreClick} className="text-xs text-gray-500 hover:text-gray-700 font-medium">⊘ Abaikan</button>
           </div>
-
           <div className="flex items-center gap-2">
-            <Button variant="secondary" size="sm" onClick={onClose} className="text-xs py-1.5 px-3">
-              Batal
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={handleSubmit}
-              className="bg-blue-600 hover:bg-blue-700 text-xs py-1.5 px-4 font-semibold"
-            >
-              Hubungkan Alias
+            <Button variant="secondary" size="sm" onClick={onClose} className="text-xs py-1.5 px-3 rounded-lg">Batal</Button>
+            <Button variant="primary" size="sm" onClick={handleSubmit} className="bg-gradient-to-r from-blue-600 to-indigo-600 text-xs py-1.5 px-4 font-bold rounded-lg">
+              ✓ Hubungkan Alias
             </Button>
           </div>
         </div>
@@ -1638,103 +1946,89 @@ const Stage3ResolverModal: React.FC<Stage3ResolverModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-gray-100 animate-scaleIn space-y-5">
-        <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-          <div className="flex items-center gap-2">
-            <span className="w-8 h-8 rounded-lg bg-sky-100 text-sky-800 flex items-center justify-center font-bold text-sm">
-              ⓘ
-            </span>
-            <div>
-              <Typography variant="heading-3" className="font-bold text-gray-900">
-                Perbaiki Custom ID (Tahap 3)
-              </Typography>
-              <div className="text-xs text-gray-500">
-                Custom ID tidak valid: <code className="font-mono text-rose-600">{row.originalRow.customId}</code>
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-gray-100 overflow-hidden" style={{ animation: 'scaleIn 0.25s ease-out' }}>
+        <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-sky-50 to-white">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-sky-100 text-sky-600 flex items-center justify-center text-lg">ⓘ</div>
+              <div>
+                <div className="font-bold text-gray-900 text-sm">Perbaiki Custom ID (Tahap 3)</div>
+                <div className="text-[11px] text-gray-500 mt-0.5">
+                  Custom ID tidak valid: <code className="font-mono text-rose-600 font-bold">{row.originalRow.customId}</code>
+                </div>
               </div>
             </div>
-          </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
-        </div>
-
-        <div>
-          <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-            Pilih Song ID Katalog LOKA yang Benar:
-          </label>
-          <select
-            value={selectedSongId}
-            onChange={(e) => setSelectedSongId(e.target.value)}
-            className="w-full text-xs border border-gray-300 rounded-lg p-2.5 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            {catalogSongs.map((s) => (
-              <option key={s.songId} value={s.songId}>
-                [{s.songId}] {s.songTitle}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="space-y-2 text-xs">
-          <label className="block font-semibold text-gray-700">Cakupan Perbaikan:</label>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setScope('all_open_batches')}
-              className={`p-3 rounded-lg border text-left transition-all ${
-                scope === 'all_open_batches'
-                  ? 'border-blue-600 bg-blue-50/50 text-blue-900 font-semibold ring-1 ring-blue-600'
-                  : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              <div className="font-bold">Semua Baris dengan Custom ID ini</div>
-            </button>
-            <button
-              type="button"
-              onClick={() => setScope('row')}
-              className={`p-3 rounded-lg border text-left transition-all ${
-                scope === 'row'
-                  ? 'border-blue-600 bg-blue-50/50 text-blue-900 font-semibold ring-1 ring-blue-600'
-                  : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              <div className="font-bold">Hanya Baris Ini Saja</div>
+            <button onClick={onClose} className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
           </div>
         </div>
 
-        <div>
-          <label className="block text-xs font-semibold text-gray-700 mb-1">Catatan:</label>
-          <input
-            type="text"
-            placeholder="Contoh: Typo pada laporan DSP, dipetakan ke Song ID L000705"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            className="w-full text-xs border border-gray-200 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
+        <div className="px-6 py-5 space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+              Pilih Song ID Katalog LOKA yang Benar:
+            </label>
+            <select
+              value={selectedSongId}
+              onChange={(e) => setSelectedSongId(e.target.value)}
+              className="w-full text-xs border border-gray-300 rounded-xl p-2.5 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {catalogSongs.map((s) => (
+                <option key={s.songId} value={s.songId}>
+                  [{s.songId}] {s.songTitle}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-2 text-xs">
+            <label className="block font-semibold text-gray-700">Cakupan Perbaikan:</label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setScope('all_open_batches')}
+                className={`p-3 rounded-xl border-2 text-left transition-all ${
+                  scope === 'all_open_batches' ? 'border-blue-500 bg-blue-50/50 shadow-sm' : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className="font-bold text-gray-900">Semua Baris dengan Custom ID ini</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setScope('row')}
+                className={`p-3 rounded-xl border-2 text-left transition-all ${
+                  scope === 'row' ? 'border-blue-500 bg-blue-50/50 shadow-sm' : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className="font-bold text-gray-900">Hanya Baris Ini Saja</div>
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">Catatan:</label>
+            <input
+              type="text"
+              placeholder="Contoh: Typo pada laporan DSP, dipetakan ke Song ID L000705"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="w-full text-xs border border-gray-200 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
         </div>
 
-        <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <button type="button" onClick={onHoldClick} className="text-xs text-amber-700 hover:underline">
-              ⏸ Tahan
-            </button>
-            <span className="text-gray-300">&bull;</span>
-            <button type="button" onClick={onIgnoreClick} className="text-xs text-gray-500 hover:underline">
-              ⊘ Abaikan
-            </button>
+            <button type="button" onClick={onHoldClick} className="text-xs text-amber-600 hover:text-amber-800 font-medium">⏸ Tahan</button>
+            <span className="text-gray-300">·</span>
+            <button type="button" onClick={onIgnoreClick} className="text-xs text-gray-500 hover:text-gray-700 font-medium">⊘ Abaikan</button>
           </div>
-
           <div className="flex items-center gap-2">
-            <Button variant="secondary" size="sm" onClick={onClose} className="text-xs py-1.5 px-3">
-              Batal
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={handleSubmit}
-              className="bg-blue-600 hover:bg-blue-700 text-xs py-1.5 px-4 font-semibold"
-            >
-              Perbarui Custom ID
+            <Button variant="secondary" size="sm" onClick={onClose} className="text-xs py-1.5 px-3 rounded-lg">Batal</Button>
+            <Button variant="primary" size="sm" onClick={handleSubmit} className="bg-gradient-to-r from-blue-600 to-indigo-600 text-xs py-1.5 px-4 font-bold rounded-lg">
+              ✓ Perbarui Custom ID
             </Button>
           </div>
         </div>
@@ -1796,140 +2090,108 @@ const ConflictResolverModal: React.FC<ConflictResolverModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-gray-100 animate-scaleIn space-y-5">
-        <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-          <div className="flex items-center gap-2">
-            <span className="w-8 h-8 rounded-lg bg-purple-100 text-purple-800 flex items-center justify-center font-bold text-sm">
-              ⇄
-            </span>
-            <div>
-              <Typography variant="heading-3" className="font-bold text-gray-900">
-                Penyelesaian Konflik Validasi
-              </Typography>
-              <div className="text-xs text-gray-500">
-                Asset ID & Custom ID mengarah ke lagu yang berbeda di master katalog
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-gray-100 overflow-hidden" style={{ animation: 'scaleIn 0.25s ease-out' }}>
+        <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-purple-50 to-white">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center text-lg">⇄</div>
+              <div>
+                <div className="font-bold text-gray-900 text-sm">Penyelesaian Konflik Validasi</div>
+                <div className="text-[11px] text-gray-500 mt-0.5">Asset ID & Custom ID mengarah ke lagu yang berbeda</div>
+              </div>
+            </div>
+            <button onClick={onClose} className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+          </div>
+        </div>
+
+        <div className="px-6 py-5 space-y-5">
+          {/* Side-by-side */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Option A */}
+            <div
+              onClick={() => setChosenOption('asset')}
+              className={`p-4 rounded-xl border-2 transition-all cursor-pointer ${
+                chosenOption === 'asset' ? 'border-purple-500 bg-purple-50/30 shadow-sm' : 'border-gray-200 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-bold text-purple-800 uppercase bg-purple-100 px-2 py-0.5 rounded-md">Opsi A: Asset ID</span>
+                <input type="radio" name="conflictChoice" checked={chosenOption === 'asset'} onChange={() => setChosenOption('asset')} className="text-purple-600 focus:ring-purple-500" />
+              </div>
+              <div className="font-extrabold text-gray-900 text-sm">{songByAsset?.songTitle || 'N/A'}</div>
+              <div className="text-[10px] text-gray-500 mt-0.5 font-mono">{songByAsset?.songId || row.candidateSongIdByAsset}</div>
+              <div className="mt-3 pt-2 border-t border-purple-100 text-xs text-gray-700 space-y-1">
+                {songByAsset?.writers.map((w) => (
+                  <div key={w.ipbaseNo} className="flex justify-between">
+                    <span>{w.ipName}</span>
+                    <span className="font-semibold">{w.mecOwn}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Option B */}
+            <div
+              onClick={() => setChosenOption('custom')}
+              className={`p-4 rounded-xl border-2 transition-all cursor-pointer ${
+                chosenOption === 'custom' ? 'border-purple-500 bg-purple-50/30 shadow-sm' : 'border-gray-200 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-bold text-purple-800 uppercase bg-purple-100 px-2 py-0.5 rounded-md">Opsi B: Custom ID</span>
+                <input type="radio" name="conflictChoice" checked={chosenOption === 'custom'} onChange={() => setChosenOption('custom')} className="text-purple-600 focus:ring-purple-500" />
+              </div>
+              <div className="font-extrabold text-gray-900 text-sm">{songByCustom?.songTitle || 'N/A'}</div>
+              <div className="text-[10px] text-gray-500 mt-0.5 font-mono">{songByCustom?.songId || row.candidateSongIdByCustomId}</div>
+              <div className="mt-3 pt-2 border-t border-purple-100 text-xs text-gray-700 space-y-1">
+                {songByCustom?.writers.map((w) => (
+                  <div key={w.ipbaseNo} className="flex justify-between">
+                    <span>{w.ipName}</span>
+                    <span className="font-semibold">{w.mecOwn}%</span>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
-        </div>
 
-        {/* Side-by-side comparison */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Option A: Asset ID */}
-          <div
-            onClick={() => setChosenOption('asset')}
-            className={`p-4 rounded-xl border-2 transition-all cursor-pointer ${
-              chosenOption === 'asset'
-                ? 'border-purple-600 bg-purple-50/40 ring-1 ring-purple-600'
-                : 'border-gray-200 hover:border-gray-300'
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-purple-900 uppercase">Opsi A: Sesuai Asset ID</span>
-              <input
-                type="radio"
-                name="conflictChoice"
-                checked={chosenOption === 'asset'}
-                onChange={() => setChosenOption('asset')}
-                className="text-purple-600 focus:ring-purple-500"
-              />
+          <label className="flex items-start gap-2.5 text-xs text-gray-700 cursor-pointer bg-gray-50 rounded-xl p-3 border border-gray-200">
+            <input
+              type="checkbox"
+              checked={fixMaster}
+              onChange={(e) => setFixMaster(e.target.checked)}
+              className="rounded border-gray-300 text-purple-600 focus:ring-purple-500 mt-0.5"
+            />
+            <div>
+              <div className="font-semibold text-gray-800">Sinkronkan ke Master</div>
+              <div className="text-[10px] text-gray-500">Asset ID ini akan dipetakan permanen ke lagu opsi terpilih</div>
             </div>
-            <div className="font-extrabold text-gray-900 mt-2 text-sm">
-              {songByAsset?.songTitle || 'Katalog Terpetakan dari Asset'}
-            </div>
-            <div className="text-xs text-gray-500 mt-0.5">Song ID: {songByAsset?.songId || row.candidateSongIdByAsset}</div>
-            <div className="mt-3 pt-2 border-t border-purple-100 text-xs text-gray-700">
-              <span className="text-gray-400 block mb-1">Komposisi Pencipta:</span>
-              {songByAsset?.writers.map((w) => (
-                <div key={w.ipbaseNo} className="flex justify-between">
-                  <span>{w.ipName}</span>
-                  <span className="font-semibold">{w.mecOwn}%</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          </label>
 
-          {/* Option B: Custom ID */}
-          <div
-            onClick={() => setChosenOption('custom')}
-            className={`p-4 rounded-xl border-2 transition-all cursor-pointer ${
-              chosenOption === 'custom'
-                ? 'border-purple-600 bg-purple-50/40 ring-1 ring-purple-600'
-                : 'border-gray-200 hover:border-gray-300'
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-purple-900 uppercase">Opsi B: Sesuai Custom ID</span>
-              <input
-                type="radio"
-                name="conflictChoice"
-                checked={chosenOption === 'custom'}
-                onChange={() => setChosenOption('custom')}
-                className="text-purple-600 focus:ring-purple-500"
-              />
-            </div>
-            <div className="font-extrabold text-gray-900 mt-2 text-sm">
-              {songByCustom?.songTitle || 'Katalog Terpetakan dari Custom ID'}
-            </div>
-            <div className="text-xs text-gray-500 mt-0.5">Song ID: {songByCustom?.songId || row.candidateSongIdByCustomId}</div>
-            <div className="mt-3 pt-2 border-t border-purple-100 text-xs text-gray-700">
-              <span className="text-gray-400 block mb-1">Komposisi Pencipta:</span>
-              {songByCustom?.writers.map((w) => (
-                <div key={w.ipbaseNo} className="flex justify-between">
-                  <span>{w.ipName}</span>
-                  <span className="font-semibold">{w.mecOwn}%</span>
-                </div>
-              ))}
-            </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">Alasan Penentuan Opsi:</label>
+            <input
+              type="text"
+              placeholder="Contoh: Berdasarkan judul audio mashup YouTube, klaim terverifikasi"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              className="w-full text-xs border border-gray-200 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-purple-500"
+            />
           </div>
         </div>
 
-        {/* Permanent master sync */}
-        <label className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer pt-2">
-          <input
-            type="checkbox"
-            checked={fixMaster}
-            onChange={(e) => setFixMaster(e.target.checked)}
-            className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-          />
-          <span>Sinkronisasikan Asset ID ini secara permanen ke lagu opsi terpilih di tabel master</span>
-        </label>
-
-        <div>
-          <label className="block text-xs font-semibold text-gray-700 mb-1">Alasan Penentuan Opsi:</label>
-          <input
-            type="text"
-            placeholder="Contoh: Berdasarkan judul audio mashup YouTube, klaim terverifikasi milik Song ID Opsi A"
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            className="w-full text-xs border border-gray-200 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
-          />
-        </div>
-
-        <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <button type="button" onClick={onHoldClick} className="text-xs text-amber-700 hover:underline">
-              ⏸ Tahan Baris
-            </button>
-            <span className="text-gray-300">&bull;</span>
-            <button type="button" onClick={onIgnoreClick} className="text-xs text-gray-500 hover:underline">
-              ⊘ Abaikan Baris
-            </button>
+            <button type="button" onClick={onHoldClick} className="text-xs text-amber-600 hover:text-amber-800 font-medium">⏸ Tahan</button>
+            <span className="text-gray-300">·</span>
+            <button type="button" onClick={onIgnoreClick} className="text-xs text-gray-500 hover:text-gray-700 font-medium">⊘ Abaikan</button>
           </div>
-
           <div className="flex items-center gap-2">
-            <Button variant="secondary" size="sm" onClick={onClose} className="text-xs py-1.5 px-3">
-              Batal
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={handleSubmit}
-              className="bg-purple-600 hover:bg-purple-700 text-xs py-1.5 px-4 font-semibold text-white"
-            >
-              Konfirmasi Opsi
+            <Button variant="secondary" size="sm" onClick={onClose} className="text-xs py-1.5 px-3 rounded-lg">Batal</Button>
+            <Button variant="primary" size="sm" onClick={handleSubmit} className="bg-gradient-to-r from-purple-600 to-indigo-600 text-xs py-1.5 px-4 font-bold rounded-lg text-white">
+              ✓ Konfirmasi Opsi
             </Button>
           </div>
         </div>
@@ -1954,56 +2216,57 @@ const HoldModal: React.FC<HoldModalProps> = ({ row, onClose, onConfirm }) => {
   const [holdUntil, setHoldUntil] = useState(defaultDate.toISOString().split('T')[0]);
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 animate-scaleIn space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-          <div className="flex items-center gap-2">
-            <span className="w-8 h-8 rounded-lg bg-blue-100 text-blue-800 flex items-center justify-center font-bold text-sm">
-              ⏸
-            </span>
-            <Typography variant="heading-3" className="font-bold text-gray-900">
-              Tahan Baris Royalti
-            </Typography>
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-gray-100 overflow-hidden" style={{ animation: 'scaleIn 0.25s ease-out' }}>
+        <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-white">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center text-lg">⏸</div>
+              <div className="font-bold text-gray-900 text-sm">Tahan Baris Royalti</div>
+            </div>
+            <button onClick={onClose} className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
         </div>
 
-        <p className="text-xs text-gray-600">
-          Baris yang ditahan tidak akan didistribusikan pada batch saat ini. Dana royalti akan tetap tersimpan
-          di rekening penampung publisher hingga status penahanan dicabut.
-        </p>
+        <div className="px-6 py-5 space-y-4">
+          <p className="text-xs text-gray-600 leading-relaxed bg-blue-50/50 p-3 rounded-xl border border-blue-100">
+            Dana royalti baris ini akan tersimpan di rekening penampung publisher hingga status penahanan dicabut.
+          </p>
 
-        <div>
-          <label className="block text-xs font-semibold text-gray-700 mb-1">Alasan Penahanan:</label>
-          <textarea
-            rows={3}
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            className="w-full text-xs border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">Alasan Penahanan:</label>
+            <textarea
+              rows={3}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              className="w-full text-xs border border-gray-200 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">Tinjau Ulang Pada Tanggal:</label>
+            <input
+              type="date"
+              value={holdUntil}
+              onChange={(e) => setHoldUntil(e.target.value)}
+              className="w-full text-xs border border-gray-200 rounded-xl p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
         </div>
 
-        <div>
-          <label className="block text-xs font-semibold text-gray-700 mb-1">Tinjau Ulang Pada Tanggal:</label>
-          <input
-            type="date"
-            value={holdUntil}
-            onChange={(e) => setHoldUntil(e.target.value)}
-            className="w-full text-xs border border-gray-200 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-
-        <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
-          <Button variant="secondary" size="sm" onClick={onClose} className="text-xs py-1.5 px-3">
+        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex items-center justify-end gap-2">
+          <Button variant="secondary" size="sm" onClick={onClose} className="text-xs py-1.5 px-3 rounded-lg">
             Batal
           </Button>
           <Button
             variant="primary"
             size="sm"
             onClick={() => onConfirm(reason, holdUntil)}
-            className="bg-blue-600 hover:bg-blue-700 text-xs py-1.5 px-4 font-semibold"
+            className="bg-blue-600 hover:bg-blue-700 text-xs py-1.5 px-4 font-bold rounded-lg"
           >
-            Tahan Baris
+            ⏸ Tahan Baris
           </Button>
         </div>
       </div>
@@ -2024,62 +2287,63 @@ const IgnoreModal: React.FC<IgnoreModalProps> = ({ row, onClose, onConfirm }) =>
   const [reason, setReason] = useState('Bukan karya katalog publisher LOKA (Lagu cover pihak ketiga)');
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 animate-scaleIn space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-          <div className="flex items-center gap-2">
-            <span className="w-8 h-8 rounded-lg bg-gray-100 text-gray-800 flex items-center justify-center font-bold text-sm">
-              ⊘
-            </span>
-            <Typography variant="heading-3" className="font-bold text-gray-900">
-              Abaikan Baris Laporan
-            </Typography>
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-gray-100 overflow-hidden" style={{ animation: 'scaleIn 0.25s ease-out' }}>
+        <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gray-100 text-gray-600 flex items-center justify-center text-lg">⊘</div>
+              <div className="font-bold text-gray-900 text-sm">Abaikan Baris Laporan</div>
+            </div>
+            <button onClick={onClose} className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
         </div>
 
-        <div className="p-3 rounded-lg bg-gray-50 border border-gray-200 text-xs text-gray-600 leading-relaxed">
-          Baris yang diabaikan akan dikeluarkan dari perhitungan selisih rekonsiliasi dan tidak akan
-          memunculkan peringatan unresolved. Gunakan untuk lagu non-LOKA atau duplikasi eksternal.
+        <div className="px-6 py-5 space-y-4">
+          <div className="p-3 rounded-xl bg-gray-50 border border-gray-200 text-xs text-gray-600 leading-relaxed">
+            Baris yang diabaikan akan dikeluarkan dari perhitungan selisih rekonsiliasi. Gunakan untuk lagu non-LOKA atau duplikasi.
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">Pilih / Masukkan Alasan:</label>
+            <select
+              onChange={(e) => setReason(e.target.value)}
+              className="w-full text-xs border border-gray-200 rounded-xl p-2.5 bg-white text-gray-800 mb-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="Bukan karya katalog publisher LOKA (Lagu cover pihak ketiga)">
+                Bukan karya katalog publisher LOKA (Lagu cover pihak ketiga)
+              </option>
+              <option value="Duplikasi laporan DSP (Laporan ganda)">Duplikasi laporan DSP</option>
+              <option value="Klaim sengketa pihak ketiga di luar yurisdiksi LOKA">
+                Klaim sengketa pihak ketiga
+              </option>
+              <option value="Nominal royalti nihil / penyesuaian teknis DSP">
+                Nominal royalti nihil / penyesuaian teknis
+              </option>
+            </select>
+            <input
+              type="text"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Alasan spesifik..."
+              className="w-full text-xs border border-gray-200 rounded-xl p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
         </div>
 
-        <div>
-          <label className="block text-xs font-semibold text-gray-700 mb-1">Pilih / Masukkan Alasan:</label>
-          <select
-            onChange={(e) => setReason(e.target.value)}
-            className="w-full text-xs border border-gray-200 rounded-lg p-2.5 bg-white text-gray-800 mb-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="Bukan karya katalog publisher LOKA (Lagu cover pihak ketiga)">
-              Bukan karya katalog publisher LOKA (Lagu cover pihak ketiga)
-            </option>
-            <option value="Duplikasi laporan DSP (Laporan ganda)">Duplikasi laporan DSP (Laporan ganda)</option>
-            <option value="Klaim sengketa pihak ketiga di luar yurisdiksi LOKA">
-              Klaim sengketa pihak ketiga di luar yurisdiksi LOKA
-            </option>
-            <option value="Nominal royalti nihil / penyesuaian teknis DSP">
-              Nominal royalti nihil / penyesuaian teknis DSP
-            </option>
-          </select>
-          <input
-            type="text"
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            placeholder="Alasan spesifik..."
-            className="w-full text-xs border border-gray-200 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-
-        <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
-          <Button variant="secondary" size="sm" onClick={onClose} className="text-xs py-1.5 px-3">
+        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex items-center justify-end gap-2">
+          <Button variant="secondary" size="sm" onClick={onClose} className="text-xs py-1.5 px-3 rounded-lg">
             Batal
           </Button>
           <Button
             variant="primary"
             size="sm"
             onClick={() => onConfirm(reason)}
-            className="bg-gray-800 hover:bg-gray-900 text-xs py-1.5 px-4 font-semibold text-white"
+            className="bg-gray-800 hover:bg-gray-900 text-xs py-1.5 px-4 font-bold text-white rounded-lg"
           >
-            Abaikan Baris Ini
+            ⊘ Abaikan Baris
           </Button>
         </div>
       </div>

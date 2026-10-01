@@ -19,6 +19,7 @@ import {
   getExceptionStats,
   clearAllData,
   initializeSampleData,
+  getAllBatches,
 } from './data/distributionEngine';
 import {
   AVAILABLE_PERIODS,
@@ -34,6 +35,27 @@ export const App: React.FC = () => {
   const [showClearModal, setShowClearModal] = useState(false);
   const [adminPeriod, setAdminPeriod] = useState<string>('Mei 2026');
   const [resolverBatchId, setResolverBatchId] = useState<string | undefined>(undefined);
+
+  // PB-1.3: Batch status metrics
+  const allBatches = useMemo(() => getAllBatches(), [dataVersion]);
+  const publishedBatches = useMemo(
+    () => allBatches.filter((b) => b.status === 'published' || b.status === 'distributed' || b.status === 'locked'),
+    [allBatches]
+  );
+  const pendingBatches = useMemo(
+    () => allBatches.filter((b) => b.status === 'in_review' || b.status === 'ready_to_publish' || b.status === 'uploaded'),
+    [allBatches]
+  );
+
+  const totalPublishedRoyalty = useMemo(
+    () => publishedBatches.reduce((s, b) => s + b.totalDistributed, 0),
+    [publishedBatches]
+  );
+  const totalPendingRoyalty = useMemo(
+    () => pendingBatches.reduce((s, b) => s + b.totalDistributed, 0),
+    [pendingBatches]
+  );
+  const totalPotentialRoyalty = totalPublishedRoyalty + totalPendingRoyalty;
 
   // Unmatched & Conflict Exception Stats
   const exceptionStats = useMemo(() => getExceptionStats(), [dataVersion]);
@@ -253,6 +275,7 @@ export const App: React.FC = () => {
               clearAllData();
               setDataVersion((v) => v + 1);
             }}
+            onDataChange={() => setDataVersion((v) => v + 1)}
           />
         )}
 
@@ -262,6 +285,7 @@ export const App: React.FC = () => {
             initialBatchId={resolverBatchId}
             onBack={() => setActiveNav('dashboard')}
             onRefreshData={() => setDataVersion((v) => v + 1)}
+            onNavigateToBatchHistory={() => setActiveNav('batches')}
           />
         )}
 
@@ -419,6 +443,47 @@ export const App: React.FC = () => {
                     </Button>
                   </div>
                 )}
+
+                {/* PB-1.3: Tri-Metric Status Strip (Total Potensi, Terpublikasi Resmi, Pending Otorisasi) */}
+                <div className="bg-white border border-slate-200/90 rounded-xl p-3.5 px-4 shadow-2xs flex flex-wrap items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 tracking-wide uppercase">
+                      PB-1.3
+                    </span>
+                    <span className="font-semibold text-slate-800">Status Otorisasi Distribusi:</span>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-4 sm:gap-6 font-medium">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-slate-500">Total Potensi:</span>
+                      <span className="font-bold text-slate-900 tabular-nums">
+                        {formatCurrency(totalPotentialRoyalty)}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                      <span className="text-emerald-800">Terpublikasi Resmi:</span>
+                      <span className="font-bold text-emerald-700 tabular-nums">
+                        {formatCurrency(totalPublishedRoyalty)}
+                      </span>
+                      <span className="text-[10px] text-slate-400">({publishedBatches.length} batch)</span>
+                    </div>
+
+                    {pendingBatches.length > 0 && (
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-amber-500" />
+                        <span className="text-amber-800">Pending Otorisasi:</span>
+                        <span className="font-bold text-amber-700 tabular-nums">
+                          {formatCurrency(totalPendingRoyalty)}
+                        </span>
+                        <span className="text-[10px] text-amber-700 font-bold bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200">
+                          {pendingBatches.length} batch draft
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
 
                 {/* 4 StatCards Grid */}
                 <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

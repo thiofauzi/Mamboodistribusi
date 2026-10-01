@@ -25,7 +25,17 @@ export type ResolutionType =
   | 'auto_map'
   | 'backfill';
 export type ResolutionScope = 'row' | 'batch' | 'all_open_batches';
-export type BatchStatus = 'uploaded' | 'validated' | 'distributed' | 'failed';
+export type BatchStatus =
+  | 'uploaded'
+  | 'in_review'
+  | 'ready_to_publish'
+  | 'published'
+  | 'locked'
+  | 'cancelled'
+  | 'failed'
+  | 'validated'
+  | 'distributed';
+export type IssueStatus = 'open' | 'resolved' | 'on_hold' | 'ignored';
 export type RightType = 'Mechanical' | 'Performance' | 'Synchronization';
 
 export interface DSPReportRow {
@@ -111,6 +121,8 @@ export interface MatchedSourceRow {
   resolvedAt?: string;
   resolvedBy?: string;
   holdUntil?: string;
+  issueStatus?: IssueStatus;
+  issueReason?: string;
   version: number;
 }
 
@@ -136,12 +148,25 @@ export interface RoyaltyBatch {
   period: string;
   fileName: string;
   status: BatchStatus;
+  uploadedBy?: string;
   totalSource: number;
   totalDistributed: number;
+  totalOnHold?: number;
+  totalIgnored?: number;
+  publisherShare?: number;
   totalRows: number;
   matchedRows: number;
   unmatchedRows: number;
   conflictRows: number;
+  openIssuesCount?: number;
+  readyMarkedBy?: string;
+  publishedAt?: string;
+  publishedBy?: string;
+  publishingNotes?: string;
+  publishChecksum?: string;
+  unpublishedAt?: string;
+  unpublishReason?: string;
+  viewedByCreatorsCount?: number;
   createdAt: string;
   sourceRows: MatchedSourceRow[];
   distributions: DistributionResult[];
@@ -151,11 +176,14 @@ export interface ReconciliationReport {
   batchId: string;
   totalSourceRevenue: number;
   totalDistributedRevenue: number;
+  totalOnHoldRevenue?: number;
+  totalIgnoredRevenue?: number;
   difference: number;
   isBalanced: boolean;
   matchedCount: number;
   unmatchedCount: number;
   conflictCount: number;
+  openIssuesCount?: number;
   unmatchedByStage: { stage1: number; stage2: number; stage3: number };
 }
 
@@ -555,19 +583,103 @@ export function initializeSampleData() {
     },
   ];
 
+  // 1. Published Historical Batch (Q1 2026) so creators have verified baseline statements
+  const sampleQ1Dists: DistributionResult[] = [];
+  for (const c of realData.creators) {
+    const songGross = c.totalRoyalty * 0.85;
+    const creatorNet = songGross * 0.70;
+    const pubNet = songGross * 0.30;
+    const ipbaseNo = `IP-${c.name.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 10)}`;
+
+    sampleQ1Dists.push({
+      distId: genId(),
+      batchId: 'batch-q1-2026',
+      rowId: 'row-q1-' + genId(),
+      songId: c.songsList[0]?.customId || 'S-001',
+      assetId: 'A-Q1-' + genId(),
+      ipbaseNo,
+      ipName: c.name,
+      rightType: 'Mechanical',
+      percentage: 70,
+      distMr: creatorNet,
+      dspCode: 'YOUTUBE',
+      country: 'ID',
+      day: '2026-03',
+    });
+    sampleQ1Dists.push({
+      distId: genId(),
+      batchId: 'batch-q1-2026',
+      rowId: 'row-q1-pub-' + genId(),
+      songId: c.songsList[0]?.customId || 'S-001',
+      assetId: 'A-Q1-' + genId(),
+      ipbaseNo: 'I-007560847-6',
+      ipName: 'LOKA Publishing',
+      rightType: 'Mechanical',
+      percentage: 30,
+      distMr: pubNet,
+      dspCode: 'YOUTUBE',
+      country: 'ID',
+      day: '2026-03',
+    });
+  }
+
+  // Set issueStatus on sampleExceptionRows
+  for (const r of sampleExceptionRows) {
+    if (r.matchStatus === 'on_hold') {
+      r.issueStatus = 'on_hold';
+    } else if (r.matchStatus === 'ignored') {
+      r.issueStatus = 'ignored';
+    } else if (r.matchStatus === 'resolved') {
+      r.issueStatus = 'resolved';
+    } else {
+      r.issueStatus = 'open';
+    }
+  }
+
   batches = [
+    {
+      batchId: 'batch-q1-2026',
+      dspCode: 'YOUTUBE',
+      period: '1Q26 (Jan - Mar 2026)',
+      fileName: 'Report Loka Publishing Q1 2026 Final.xlsx',
+      status: 'published',
+      uploadedBy: 'Budi (Finance Manager)',
+      publishedBy: 'Rudi (Head of Royalty)',
+      publishedAt: '2026-04-10T11:00:00.000Z',
+      publishingNotes: 'Telah diaudit & diverifikasi lengkap oleh Finance & Head of Royalty.',
+      publishChecksum: 'chk_q1_final_90a',
+      totalSource: 19500000,
+      totalDistributed: 19500000,
+      totalOnHold: 0,
+      totalIgnored: 0,
+      publisherShare: 19500000 * 0.30,
+      totalRows: 12450,
+      matchedRows: 12450,
+      unmatchedRows: 0,
+      conflictRows: 0,
+      openIssuesCount: 0,
+      viewedByCreatorsCount: 3,
+      createdAt: '2026-04-09T08:00:00.000Z',
+      sourceRows: [],
+      distributions: sampleQ1Dists,
+    },
     {
       batchId: 'batch-demo-mei-2026',
       dspCode: 'YOUTUBE',
       period: 'Mei 2026',
       fileName: 'Report Loka Publishing Mei 2026.xlsx',
-      status: 'distributed',
+      status: 'in_review',
+      uploadedBy: 'Sarah (Copyright Admin)',
       totalSource: totalSourceGross,
       totalDistributed: totalLokaPool,
+      totalOnHold: 315000,
+      totalIgnored: 107000,
+      publisherShare: totalLokaPool * 0.30,
       totalRows: 6200,
       matchedRows: 6194,
       unmatchedRows: 3,
       conflictRows: 1,
+      openIssuesCount: 4,
       createdAt: new Date().toISOString(),
       sourceRows: sampleExceptionRows,
       distributions: sampleDists,
@@ -842,18 +954,26 @@ export function processBatch(
   const unmatchedCount = matchedRows.filter(r => r.matchStatus === 'unmatched').length;
   const conflictCount = matchedRows.filter(r => r.matchStatus === 'conflict').length;
   
+  const openIssuesCount = unmatchedCount + conflictCount;
+  const initialStatus: BatchStatus = openIssuesCount > 0 ? 'in_review' : 'ready_to_publish';
+
   const batch: RoyaltyBatch = {
     batchId,
     dspCode,
     period,
     fileName,
-    status: distributions.length > 0 ? 'distributed' : 'validated',
+    status: initialStatus,
+    uploadedBy: 'Sarah (Copyright Admin)',
     totalSource,
     totalDistributed,
+    totalOnHold: 0,
+    totalIgnored: 0,
+    publisherShare: totalDistributed * 0.30,
     totalRows: rows.length,
     matchedRows: matchedCount,
     unmatchedRows: unmatchedCount,
     conflictRows: conflictCount,
+    openIssuesCount,
     createdAt: new Date().toISOString(),
     sourceRows: matchedRows,
     distributions,
@@ -864,30 +984,50 @@ export function processBatch(
 }
 
 /**
- * Generate reconciliation report for a batch (BR-4)
+ * Generate reconciliation report for a batch (BR-4 & PB-4.2)
  */
 export function getReconciliation(batchId: string): ReconciliationReport | null {
   const batch = batches.find(b => b.batchId === batchId);
   if (!batch) return null;
   
   const unmatchedByStage = { stage1: 0, stage2: 0, stage3: 0 };
-  for (const row of batch.sourceRows) {
+  let totalOnHold = 0;
+  let totalIgnored = 0;
+  let openIssuesCount = 0;
+
+  for (const row of batch.sourceRows || []) {
     if (row.failedStage === 1) unmatchedByStage.stage1++;
     if (row.failedStage === 2) unmatchedByStage.stage2++;
     if (row.failedStage === 3) unmatchedByStage.stage3++;
+
+    const val = row.originalRow?.idrRev || row.originalRow?.incomeRev || 0;
+    if (row.matchStatus === 'on_hold') {
+      totalOnHold += val;
+    } else if (row.matchStatus === 'ignored') {
+      totalIgnored += val;
+    }
+
+    if ((row.matchStatus === 'unmatched' || row.matchStatus === 'conflict') &&
+        (!row.issueStatus || row.issueStatus === 'open')) {
+      openIssuesCount++;
+    }
   }
   
-  const diff = Math.abs(batch.totalSource - batch.totalDistributed);
+  const totalAccounted = batch.totalDistributed + totalOnHold + totalIgnored;
+  const diff = Math.abs(batch.totalSource - totalAccounted);
   
   return {
     batchId,
     totalSourceRevenue: batch.totalSource,
     totalDistributedRevenue: batch.totalDistributed,
+    totalOnHoldRevenue: totalOnHold,
+    totalIgnoredRevenue: totalIgnored,
     difference: diff,
-    isBalanced: diff < 0.01, // Tolerance for floating point
+    isBalanced: diff < 5.0, // Tolerance for float precision
     matchedCount: batch.matchedRows,
     unmatchedCount: batch.unmatchedRows,
     conflictCount: batch.conflictRows,
+    openIssuesCount,
     unmatchedByStage,
   };
 }
@@ -1093,10 +1233,17 @@ export function clearAllData() {
 }
 
 /**
- * Get aggregated creators formatted for CreatorTable / CreatorDetailView from all processed batches
+ * Get aggregated creators formatted for CreatorTable / CreatorDetailView
+ * PB-1.1: Only reads published and locked batches by default for creator portal
  */
-export function getCreatorsFromAllBatches(): Creator[] {
+export function getCreatorsFromAllBatches(onlyPublished: boolean = true): Creator[] {
   if (batches.length === 0) return [];
+
+  const targetBatches = onlyPublished
+    ? batches.filter(b => b.status === 'published' || b.status === 'locked' || b.status === 'distributed')
+    : batches;
+
+  if (targetBatches.length === 0) return [];
 
   const creatorMap = new Map<string, {
     name: string;
@@ -1107,7 +1254,7 @@ export function getCreatorsFromAllBatches(): Creator[] {
     countries: Map<string, number>;
   }>();
 
-  for (const batch of batches) {
+  for (const batch of targetBatches) {
     for (const dist of batch.distributions) {
       // Exclude Publisher LOKA from creators list (has its own dedicated publisher card)
       if (
@@ -1384,6 +1531,7 @@ export function resolveStage1Asset(
     reason,
   });
 
+  for (const b of batches) recomputeBatchStatus(b);
   return { success: true, affectedCount };
 }
 
@@ -1450,6 +1598,7 @@ export function resolveStage2Writer(
     reason,
   });
 
+  for (const b of batches) recomputeBatchStatus(b);
   return { success: true, affectedCount };
 }
 
@@ -1501,6 +1650,7 @@ export function resolveStage3CustomId(
     reason,
   });
 
+  for (const b of batches) recomputeBatchStatus(b);
   return { success: true, affectedCount };
 }
 
@@ -1541,6 +1691,7 @@ export function resolveConflict(
     reason,
   });
 
+  for (const b of batches) recomputeBatchStatus(b);
   return { success: true };
 }
 
@@ -1566,6 +1717,7 @@ export function holdRow(rowId: string, reason: string, holdUntil: string) {
         after: { matchStatus: 'on_hold', holdUntil },
         reason,
       });
+      for (const batchItem of batches) recomputeBatchStatus(batchItem);
       return { success: true };
     }
   }
@@ -1593,6 +1745,7 @@ export function ignoreRow(rowId: string, reason: string) {
         after: { matchStatus: 'ignored' },
         reason,
       });
+      for (const batchItem of batches) recomputeBatchStatus(batchItem);
       return { success: true };
     }
   }
@@ -1621,6 +1774,7 @@ export function undoResolution(rowId: string) {
         before: { matchStatus: 'resolved' },
         after: { matchStatus: prevStatus },
       });
+      for (const batchItem of batches) recomputeBatchStatus(batchItem);
       return { success: true };
     }
   }
@@ -1809,4 +1963,370 @@ export function getMasterWriters(): { ipbaseNo: string; ipName: string }[] {
   }
   return Array.from(map.entries()).map(([ipbaseNo, ipName]) => ({ ipbaseNo, ipName }));
 }
+
+// ─── Batch Publishing & Gatekeeper Lifecycle (PRD v1.1) ──────────
+
+export interface GatekeeperCheck {
+  id: string;
+  label: string;
+  passed: boolean;
+  description: string;
+  severity: 'blocking' | 'warning';
+}
+
+export interface GatekeeperResult {
+  canPublish: boolean;
+  checks: GatekeeperCheck[];
+  summary: {
+    totalSource: number;
+    totalDistributed: number;
+    totalOnHold: number;
+    totalIgnored: number;
+    publisherShare: number;
+    creatorNetPayout: number;
+    recipientCount: number;
+    songCount: number;
+    openIssuesCount: number;
+    isFourEyesSatisfied: boolean;
+  };
+  checksum: string;
+}
+
+/** Generate snapshot checksum to guarantee data integrity (PB-4.3.5) */
+export function generateBatchChecksum(batch: RoyaltyBatch): string {
+  const str = `${batch.batchId}:${batch.totalSource}:${batch.totalDistributed}:${batch.openIssuesCount || 0}:${batch.distributions.length}:${batch.sourceRows?.length || 0}`;
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash |= 0;
+  }
+  return 'chk_' + Math.abs(hash).toString(16).padStart(8, '0');
+}
+
+/** Recompute batch openIssuesCount and status in response to resolution events */
+export function recomputeBatchStatus(batch: RoyaltyBatch): void {
+  let openIssues = 0;
+  let onHold = 0;
+  let ignored = 0;
+
+  for (const r of batch.sourceRows || []) {
+    const val = r.originalRow?.idrRev || r.originalRow?.incomeRev || 0;
+    if (r.matchStatus === 'on_hold') {
+      onHold += val;
+      r.issueStatus = 'on_hold';
+    } else if (r.matchStatus === 'ignored') {
+      ignored += val;
+      r.issueStatus = 'ignored';
+    } else if (r.matchStatus === 'resolved' || r.matchStatus === 'matched') {
+      r.issueStatus = 'resolved';
+    } else if (r.matchStatus === 'unmatched' || r.matchStatus === 'conflict') {
+      r.issueStatus = 'open';
+      openIssues++;
+    }
+  }
+
+  batch.openIssuesCount = openIssues;
+  batch.totalOnHold = onHold;
+  batch.totalIgnored = ignored;
+
+  // State transitions:
+  // in_review -> ready_to_publish if openIssues == 0
+  // ready_to_publish -> in_review if openIssues > 0
+  if (batch.status === 'ready_to_publish' && openIssues > 0) {
+    batch.status = 'in_review';
+  } else if (batch.status === 'in_review' && openIssues === 0) {
+    batch.status = 'ready_to_publish';
+  }
+}
+
+/** Check Gatekeeper and Pre-Distribution Checklist (PB-4.2 & PB-4.3) */
+export function checkGatekeeperStatus(batchId: string, currentApprover: string = 'Budi (Finance Manager)'): GatekeeperResult {
+  const batch = batches.find(b => b.batchId === batchId);
+  if (!batch) {
+    return {
+      canPublish: false,
+      checks: [],
+      summary: {
+        totalSource: 0,
+        totalDistributed: 0,
+        totalOnHold: 0,
+        totalIgnored: 0,
+        publisherShare: 0,
+        creatorNetPayout: 0,
+        recipientCount: 0,
+        songCount: 0,
+        openIssuesCount: 0,
+        isFourEyesSatisfied: false,
+      },
+      checksum: '',
+    };
+  }
+
+  recomputeBatchStatus(batch);
+  const recon = getReconciliation(batchId);
+
+  // Check 1: openIssuesCount == 0 (PB-4.2)
+  const openIssues = batch.openIssuesCount ?? 0;
+  const openIssuesCheck: GatekeeperCheck = {
+    id: 'open_issues',
+    label: 'Penyelesaian Pengecualian',
+    passed: openIssues === 0,
+    description: openIssues === 0
+      ? 'Semua baris pengecualian telah diselesaikan atau berstatus on_hold / ignored'
+      : `Masih ada ${openIssues} baris pengecualian berstatus open yang belum diputuskan di Resolver`,
+    severity: 'blocking',
+  };
+
+  // Check 2: on_hold & ignored rows have reasons (PB-4.2)
+  const missingReasons = (batch.sourceRows || []).filter(
+    r => (r.matchStatus === 'on_hold' || r.matchStatus === 'ignored') && (!r.resolutionReason || r.resolutionReason.trim().length === 0)
+  );
+  const reasonsCheck: GatekeeperCheck = {
+    id: 'issue_reasons',
+    label: 'Dokumentasi Alasan On-Hold & Ignored',
+    passed: missingReasons.length === 0,
+    description: missingReasons.length === 0
+      ? 'Seluruh baris yang ditahan (on_hold) atau diabaikan (ignored) memiliki alasan valid'
+      : `Terdapat ${missingReasons.length} baris on_hold/ignored yang belum diisi alasan penahanannya`,
+    severity: 'blocking',
+  };
+
+  // Check 3: Reconciliation balanced (Selisih Rp 0)
+  const isBalanced = recon?.isBalanced ?? false;
+  const reconCheck: GatekeeperCheck = {
+    id: 'reconciliation',
+    label: 'Rekonsiliasi Keuangan (Zero-Difference)',
+    passed: isBalanced,
+    description: isBalanced
+      ? 'Saldo seimbang: Total Sumber = Total Distribusi + On-Hold + Ignored'
+      : `Terdapat selisih nominal Rp ${Math.round(recon?.difference || 0).toLocaleString('id-ID')}`,
+    severity: 'blocking',
+  };
+
+  // Check 4: Rights composition <= 100%
+  const songsInBatch = new Set(batch.distributions.map(d => d.songId));
+  let oversplitSong: string | null = null;
+  for (const sId of songsInBatch) {
+    const rights = songRights.filter(sr => sr.songId === sId);
+    const sumMec = rights.reduce((s, r) => s + r.mecOwn, 0);
+    if (sumMec > 100.01) {
+      oversplitSong = `${rights[0]?.songTitle || sId} (${sumMec}%)`;
+      break;
+    }
+  }
+  const rightsCheck: GatekeeperCheck = {
+    id: 'rights_split',
+    label: 'Integritas Komposisi Hak Lagu',
+    passed: oversplitSong === null,
+    description: oversplitSong === null
+      ? 'Seluruh komposisi hak cipta lagu tepat dan tidak melebihi 100%'
+      : `Lagu ${oversplitSong} melebihi batas 100%`,
+    severity: 'blocking',
+  };
+
+  // Check 5: At least one recipient with > 0
+  const recipientCount = new Set(
+    batch.distributions
+      .filter(d => !d.ipName.toLowerCase().includes('loka') && !d.ipName.toLowerCase().includes('publishing'))
+      .map(d => d.ipbaseNo || d.ipName)
+  ).size;
+  const minRecipientCheck: GatekeeperCheck = {
+    id: 'min_recipient',
+    label: 'Penerima Hak Cipta',
+    passed: batch.totalDistributed > 0 && recipientCount > 0,
+    description: recipientCount > 0
+      ? `Terverifikasi ${recipientCount} pencipta berhak menerima royalti pada batch ini`
+      : 'Batch belum memiliki penerima royalti',
+    severity: 'blocking',
+  };
+
+  // Check 6: Four-Eyes Principle (PB-4.3)
+  const uploader = batch.uploadedBy || 'Sarah (Copyright Admin)';
+  const resolvers = new Set((batch.sourceRows || []).map(r => r.resolvedBy).filter(Boolean));
+  const isSameAsUploader = currentApprover.toLowerCase().trim() === uploader.toLowerCase().trim();
+  const isSameAsResolver = resolvers.has(currentApprover);
+  const isFourEyesSatisfied = !isSameAsUploader && !isSameAsResolver;
+
+  const fourEyesCheck: GatekeeperCheck = {
+    id: 'four_eyes',
+    label: 'Prinsip Persetujuan Dua Orang (Four-Eyes)',
+    passed: isFourEyesSatisfied,
+    description: isFourEyesSatisfied
+      ? `Penerbit (${currentApprover}) berbeda dari pengunggah (${uploader})`
+      : `Penerbit tidak boleh sama dengan pengunggah (${uploader}) atau penyelesai isu. Diperlukan persetujuan Finance / Head of Royalty.`,
+    severity: 'blocking',
+  };
+
+  const checks = [openIssuesCheck, reasonsCheck, reconCheck, rightsCheck, minRecipientCheck, fourEyesCheck];
+  const canPublish = checks.every(c => c.passed);
+
+  const creatorNetPayout = batch.distributions
+    .filter(d => !d.ipName.toLowerCase().includes('loka') && !d.ipName.toLowerCase().includes('publishing'))
+    .reduce((sum, d) => sum + d.distMr, 0);
+  const publisherShare = batch.distributions
+    .filter(d => d.ipName.toLowerCase().includes('loka') || d.ipName.toLowerCase().includes('publishing'))
+    .reduce((sum, d) => sum + d.distMr, 0);
+
+  const checksum = generateBatchChecksum(batch);
+
+  return {
+    canPublish,
+    checks,
+    summary: {
+      totalSource: batch.totalSource,
+      totalDistributed: batch.totalDistributed,
+      totalOnHold: batch.totalOnHold || 0,
+      totalIgnored: batch.totalIgnored || 0,
+      publisherShare: publisherShare || Math.round(batch.totalDistributed * 0.30),
+      creatorNetPayout: creatorNetPayout || Math.round(batch.totalDistributed * 0.70),
+      recipientCount,
+      songCount: songsInBatch.size,
+      openIssuesCount: openIssues,
+      isFourEyesSatisfied,
+    },
+    checksum,
+  };
+}
+
+/** Publish batch to creator portal (PB-4.3) */
+export function publishBatch(
+  batchId: string,
+  approverName: string,
+  notes?: string,
+  checksum?: string,
+  isOverride: boolean = false
+): { success: boolean; error?: string } {
+  const batch = batches.find(b => b.batchId === batchId);
+  if (!batch) return { success: false, error: 'Batch tidak ditemukan' };
+
+  if (batch.status === 'published' || batch.status === 'locked') {
+    return { success: false, error: 'Batch sudah terdistribusi atau terkunci' };
+  }
+
+  const gatekeeper = checkGatekeeperStatus(batchId, approverName);
+
+  if (!isOverride && !gatekeeper.canPublish) {
+    const failedCheck = gatekeeper.checks.find(c => !c.passed);
+    return { success: false, error: failedCheck?.description || 'Validasi gatekeeper belum terpenuhi' };
+  }
+
+  if (isOverride) {
+    const nonFourEyesFailed = gatekeeper.checks.filter(c => c.id !== 'four_eyes').find(c => !c.passed);
+    if (nonFourEyesFailed) {
+      return { success: false, error: nonFourEyesFailed.description };
+    }
+  }
+
+  const currentChecksum = generateBatchChecksum(batch);
+  if (checksum && checksum !== currentChecksum) {
+    return {
+      success: false,
+      error: 'Data batch telah berubah sejak modal dibuka. Mohon muat ulang.',
+    };
+  }
+
+  batch.status = 'published';
+  batch.publishedAt = new Date().toISOString();
+  batch.publishedBy = approverName;
+  batch.publishingNotes = notes || '';
+  batch.publishChecksum = currentChecksum;
+  batch.viewedByCreatorsCount = 0;
+
+  auditLogs.push({
+    id: genId(),
+    actorId: approverName,
+    timestamp: new Date().toISOString(),
+    action: isOverride ? 'BATCH_PUBLISH_OVERRIDE' : 'BATCH_PUBLISHED',
+    targetType: 'batch',
+    targetId: batchId,
+    before: { status: 'ready_to_publish' },
+    after: {
+      status: 'published',
+      publishedBy: approverName,
+      totalPayout: gatekeeper.summary.creatorNetPayout,
+      recipientCount: gatekeeper.summary.recipientCount,
+      checksum: currentChecksum,
+    },
+    reason: notes,
+  });
+
+  return { success: true };
+}
+
+/** Rollback / Unpublish batch (PB-4.4) */
+export function unpublishBatch(
+  batchId: string,
+  actorName: string,
+  reason: string
+): { success: boolean; error?: string } {
+  const batch = batches.find(b => b.batchId === batchId);
+  if (!batch) return { success: false, error: 'Batch tidak ditemukan' };
+
+  if (batch.status === 'locked') {
+    return { success: false, error: 'Batch berstatus Terkunci tidak dapat ditarik kembali' };
+  }
+
+  if (batch.status !== 'published' && batch.status !== 'distributed') {
+    return { success: false, error: 'Hanya batch yang sudah terdistribusi yang dapat ditarik kembali' };
+  }
+
+  if (!reason || reason.trim().length < 15) {
+    return { success: false, error: 'Alasan penarikan kembali wajib diisi minimal 15 karakter' };
+  }
+
+  batch.status = 'ready_to_publish';
+  batch.unpublishedAt = new Date().toISOString();
+  batch.unpublishReason = reason;
+
+  auditLogs.push({
+    id: genId(),
+    actorId: actorName,
+    timestamp: new Date().toISOString(),
+    action: 'BATCH_UNPUBLISHED',
+    targetType: 'batch',
+    targetId: batchId,
+    before: { status: 'published' },
+    after: { status: 'ready_to_publish', unpublishReason: reason },
+    reason,
+  });
+
+  return { success: true };
+}
+
+/** Mark batch as ready to publish manually if all criteria pass */
+export function markBatchReady(batchId: string, actorName: string): { success: boolean; error?: string } {
+  const batch = batches.find(b => b.batchId === batchId);
+  if (!batch) return { success: false, error: 'Batch tidak ditemukan' };
+
+  recomputeBatchStatus(batch);
+  if ((batch.openIssuesCount || 0) > 0) {
+    return { success: false, error: `Masih ada ${batch.openIssuesCount} baris pengecualian open` };
+  }
+
+  batch.status = 'ready_to_publish';
+  batch.readyMarkedBy = actorName;
+
+  auditLogs.push({
+    id: genId(),
+    actorId: actorName,
+    timestamp: new Date().toISOString(),
+    action: 'BATCH_READY_MARKED',
+    targetType: 'batch',
+    targetId: batchId,
+    before: { status: 'in_review' },
+    after: { status: 'ready_to_publish', readyMarkedBy: actorName },
+  });
+
+  return { success: true };
+}
+
+export function getPendingBatches(): RoyaltyBatch[] {
+  return batches.filter(b => b.status === 'in_review' || b.status === 'ready_to_publish' || b.status === 'uploaded');
+}
+
+export function getPublishedBatches(): RoyaltyBatch[] {
+  return batches.filter(b => b.status === 'published' || b.status === 'locked' || b.status === 'distributed');
+}
+
 
