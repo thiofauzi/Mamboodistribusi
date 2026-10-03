@@ -39,7 +39,7 @@ export const App: React.FC = () => {
   // PB-1.3: Batch status metrics
   const allBatches = useMemo(() => getAllBatches(), [dataVersion]);
   const publishedBatches = useMemo(
-    () => allBatches.filter((b) => b.status === 'published' || b.status === 'distributed' || b.status === 'locked'),
+    () => allBatches.filter((b) => b.status === 'published' || b.status === 'locked'),
     [allBatches]
   );
   const pendingBatches = useMemo(
@@ -173,10 +173,12 @@ export const App: React.FC = () => {
         c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         String(c.id).includes(searchQuery.trim());
 
-      const dominantPlatformIdx = c.platformShares[0] >= c.platformShares[1] ? 0 : 1;
-
       const matchesPlatform =
-        platformFilter === '' || dominantPlatformIdx === Number(platformFilter);
+        platformFilter === '' ||
+        (platformFilter === 'SPOTIFY' && (c.dominantDsp === 'SPOTIFY' || (c.dspBreakdown && c.dspBreakdown.spotify > 0))) ||
+        (platformFilter === 'YOUTUBE' && (c.dominantDsp === 'YOUTUBE' || (c.dspBreakdown && c.dspBreakdown.youtube > 0))) ||
+        (platformFilter === 'APPLE_MUSIC' && (c.dominantDsp === 'APPLE_MUSIC' || (c.dspBreakdown && c.dspBreakdown.appleMusic > 0))) ||
+        (platformFilter === 'OTHER' && (c.dominantDsp === 'OTHER' || (c.dspBreakdown && c.dspBreakdown.other > 0)));
 
       const matchesStatus = statusFilter === '' || c.status === statusFilter;
 
@@ -245,6 +247,7 @@ export const App: React.FC = () => {
         {/* ═══ Creator Portal Page ═══ */}
         {activeNav === 'creator-portal' && (
           <CreatorPortal
+            key={dataVersion}
             initialCreatorId={portalCreatorId}
             onBackToAdmin={() => {
               setActiveNav('dashboard');
@@ -286,6 +289,7 @@ export const App: React.FC = () => {
             onBack={() => setActiveNav('dashboard')}
             onRefreshData={() => setDataVersion((v) => v + 1)}
             onNavigateToBatchHistory={() => setActiveNav('batches')}
+            onNavigateToCreatorPortal={() => setActiveNav('creator-portal')}
           />
         )}
 
@@ -604,12 +608,14 @@ export const App: React.FC = () => {
                         <select
                           value={platformFilter}
                           onChange={(e) => setPlatformFilter(e.target.value)}
-                          aria-label="Filter kanal dominan"
-                          className="h-10 px-3 rounded-[8px] border border-[#E5E7EB] bg-[#FAFAFA] text-[13px] text-[#111827] focus:bg-white focus:outline-none focus:border-[#2563EB] transition-all cursor-pointer"
+                          aria-label="Filter Platform DSP"
+                          className="h-10 px-3 rounded-[8px] border border-[#E5E7EB] bg-[#FAFAFA] text-[13px] text-[#111827] focus:bg-white focus:outline-none focus:border-[#2563EB] transition-all cursor-pointer font-medium"
                         >
-                          <option value="">Semua Kanal</option>
-                          <option value="0">Dominan: Iklan / Ads</option>
-                          <option value="1">Dominan: Langganan / Subs</option>
+                          <option value="">Semua Platform DSP</option>
+                          <option value="SPOTIFY">Spotify</option>
+                          <option value="YOUTUBE">YouTube</option>
+                          <option value="APPLE_MUSIC">Apple Music</option>
+                          <option value="OTHER">DSP Lainnya (TikTok/Joox)</option>
                         </select>
 
                         {/* Filter Status */}

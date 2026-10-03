@@ -12,6 +12,11 @@ import {
   MemberSummary,
   getExceptionStats,
   checkGatekeeperStatus,
+  cancelBatch,
+  lockBatch,
+  toggleBatchPayout,
+  getAuditLogs,
+  AuditLog,
 } from '../../data/distributionEngine';
 import { PublishModal } from './PublishModal';
 import { UnpublishModal } from './UnpublishModal';
@@ -37,13 +42,17 @@ export const BatchHistory: React.FC<BatchHistoryProps> = ({
   // Modals state
   const [modalPublishBatch, setModalPublishBatch] = useState<RoyaltyBatch | null>(null);
   const [modalUnpublishBatch, setModalUnpublishBatch] = useState<RoyaltyBatch | null>(null);
-  const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'info' } | null>(null);
+  const [modalCancelBatch, setModalCancelBatch] = useState<RoyaltyBatch | null>(null);
+  const [cancelReason, setCancelReason] = useState<string>('');
+  const [showAuditLogsModal, setShowAuditLogsModal] = useState<boolean>(false);
+  const [auditFilterBatchId, setAuditFilterBatchId] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'info' | 'warning' } | null>(null);
 
   const batches = getAllBatches();
 
-  const showToast = (text: string, type: 'success' | 'info' = 'success') => {
+  const showToast = (text: string, type: 'success' | 'info' | 'warning' = 'success') => {
     setToastMessage({ text, type });
-    setTimeout(() => setToastMessage(null), 4000);
+    setTimeout(() => setToastMessage(null), 4500);
   };
 
   const formatCurrency = (val: number) =>
@@ -89,8 +98,68 @@ export const BatchHistory: React.FC<BatchHistoryProps> = ({
       const updated = getAllBatches().find((b) => b.batchId === selectedBatch.batchId);
       if (updated) handleViewBatch(updated);
     }
-    showToast(`Distribusi batch "${unpublishedName}" berhasil ditarik kembali ke status peninjauan.`, 'info');
+    showToast(`Distribusi batch "${unpublishedName}" berhasil ditarik kembali ke status peninjauan (PB-4.4).`, 'info');
     onDataChange?.();
+  };
+
+  const handleConfirmCancel = () => {
+    if (!modalCancelBatch) return;
+    if (cancelReason.trim().length < 5) {
+      alert('Alasan pembatalan minimal 5 karakter');
+      return;
+    }
+    const res = cancelBatch(modalCancelBatch.batchId, 'Sarah (Copyright Admin)', cancelReason.trim());
+    if (res.success) {
+      const bName = modalCancelBatch.fileName;
+      setModalCancelBatch(null);
+      setCancelReason('');
+      setRefreshTrigger((v) => v + 1);
+      if (selectedBatch && selectedBatch.batchId === modalCancelBatch.batchId) {
+        const updated = getAllBatches().find((b) => b.batchId === selectedBatch.batchId);
+        if (updated) handleViewBatch(updated);
+      }
+      showToast(`Batch "${bName}" berhasil dibatalkan (cancelled).`, 'warning');
+      onDataChange?.();
+    } else {
+      alert(res.error || 'Gagal membatalkan batch');
+    }
+  };
+
+  const handleConfirmLock = (batch: RoyaltyBatch) => {
+    if (
+      !window.confirm(
+        `Tutup periode permanen (Close Period) untuk batch ${batch.fileName}?\n\nSetelah dikunci oleh Finance, data batch tidak dapat diubah maupun di-unpublish.`
+      )
+    ) {
+      return;
+    }
+    const res = lockBatch(batch.batchId, 'Budi (Finance Manager)');
+    if (res.success) {
+      setRefreshTrigger((v) => v + 1);
+      if (selectedBatch && selectedBatch.batchId === batch.batchId) {
+        const updated = getAllBatches().find((b) => b.batchId === selectedBatch.batchId);
+        if (updated) handleViewBatch(updated);
+      }
+      showToast(`Periode batch "${batch.fileName}" resmi dikunci permanen (Locked) oleh Finance.`, 'info');
+      onDataChange?.();
+    } else {
+      alert(res.error || 'Gagal mengunci batch');
+    }
+  };
+
+  const handleTogglePayout = (batch: RoyaltyBatch) => {
+    const isNowActive = toggleBatchPayout(batch.batchId);
+    setRefreshTrigger((v) => v + 1);
+    if (selectedBatch && selectedBatch.batchId === batch.batchId) {
+      const updated = getAllBatches().find((b) => b.batchId === selectedBatch.batchId);
+      if (updated) handleViewBatch(updated);
+    }
+    showToast(
+      isNowActive
+        ? `Simulasi Payout: Pengajuan pencairan dana untuk "${batch.period}" DIAKTIFKAN. Aturan PB-4.4.4 kini MEMBLOKIR unpublish.`
+        : `Simulasi Payout: Pengajuan pencairan dana DINONAKTIFKAN. Unpublish diizinkan kembali.`,
+      isNowActive ? 'warning' : 'info'
+    );
   };
 
   // Status configuration per PRD v1.1 PB-4.5.1
@@ -109,11 +178,6 @@ export const BatchHistory: React.FC<BatchHistoryProps> = ({
       icon: '✓',
     },
     published: {
-      label: 'TERDISTRIBUSI KE PENCIPTA',
-      badgeClass: 'bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold',
-      icon: '🚀',
-    },
-    distributed: {
       label: 'TERDISTRIBUSI KE PENCIPTA',
       badgeClass: 'bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold',
       icon: '🚀',
@@ -140,6 +204,10 @@ export const BatchHistory: React.FC<BatchHistoryProps> = ({
     },
   };
 
+  const auditLogsList = getAuditLogs().filter(
+    (l) => !auditFilterBatchId || l.targetId === auditFilterBatchId
+  );
+
   return (
     <div className="space-y-6 animate-in fade-in duration-200" key={refreshTrigger}>
       {/* Toast Notification */}
@@ -149,10 +217,14 @@ export const BatchHistory: React.FC<BatchHistoryProps> = ({
             className={`p-4 rounded-xl shadow-xl border flex items-center gap-3 text-sm font-medium ${
               toastMessage.type === 'success'
                 ? 'bg-emerald-50 border-emerald-200 text-emerald-900 shadow-emerald-500/10'
+                : toastMessage.type === 'warning'
+                ? 'bg-amber-50 border-amber-200 text-amber-900 shadow-amber-500/10'
                 : 'bg-blue-50 border-blue-200 text-blue-900 shadow-blue-500/10'
             }`}
           >
-            <span>{toastMessage.type === 'success' ? '✅' : 'ℹ️'}</span>
+            <span>
+              {toastMessage.type === 'success' ? '✅' : toastMessage.type === 'warning' ? '⚠️' : 'ℹ️'}
+            </span>
             <span>{toastMessage.text}</span>
           </div>
         </div>
@@ -190,25 +262,46 @@ export const BatchHistory: React.FC<BatchHistoryProps> = ({
                 : `${batches.length} batch terdata · Pemisahan status Impor vs Status Terbit (PB-1.1)`}
             </Typography>
           </div>
-          {!selectedBatch && batches.length > 0 && onClearData && (
+
+          <div className="flex items-center gap-2.5">
+            {/* Audit Log Button */}
             <Button
               variant="secondary"
               size="sm"
               onClick={() => {
-                if (window.confirm('Hapus semua riwayat batch dan reset data?')) {
-                  onClearData();
-                }
+                setAuditFilterBatchId(selectedBatch?.batchId || null);
+                setShowAuditLogsModal(true);
               }}
-              className="text-[#DC2626] hover:text-[#B91C1C] hover:bg-[#FEF2F2] border-[#FCA5A5]"
+              className="text-slate-700 hover:text-slate-900 border-slate-300"
               iconLeft={
-                <svg className="w-4 h-4 text-[#DC2626]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
                 </svg>
               }
             >
-              Reset Data Batch
+              Audit Log (PB-5.2)
             </Button>
-          )}
+
+            {!selectedBatch && batches.length > 0 && onClearData && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  if (window.confirm('Hapus semua riwayat batch dan reset data?')) {
+                    onClearData();
+                  }
+                }}
+                className="text-[#DC2626] hover:text-[#B91C1C] hover:bg-[#FEF2F2] border-[#FCA5A5]"
+                iconLeft={
+                  <svg className="w-4 h-4 text-[#DC2626]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                }
+              >
+                Reset Data Batch
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Sub-menu Navigation Tabs */}
@@ -261,12 +354,12 @@ export const BatchHistory: React.FC<BatchHistoryProps> = ({
               </div>
             </Card>
           ) : (
-            <Card className="p-5 overflow-hidden">
-              <div className="overflow-x-auto border border-[#E5E7EB] rounded-[10px]">
+            <Card className="p-0 overflow-hidden shadow-xs border-slate-200">
+              <div className="overflow-x-auto">
                 <table className="w-full border-collapse text-[13px]">
                   <thead>
-                    <tr className="h-11 bg-slate-50 border-b border-[#E5E7EB] text-[12px] font-semibold text-slate-600 uppercase tracking-wider">
-                      <th className="px-4 py-2 text-left">DSP & File</th>
+                    <tr className="h-11 bg-slate-50 border-b border-slate-200 text-[12px] font-semibold text-slate-600">
+                      <th className="px-4 py-2 text-left">Platform & File</th>
                       <th className="px-4 py-2 text-center">Periode</th>
                       <th className="px-4 py-2 text-right">Baris</th>
                       <th className="px-4 py-2 text-center">Hasil Matching</th>
@@ -278,15 +371,18 @@ export const BatchHistory: React.FC<BatchHistoryProps> = ({
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {batches.map((b, idx) => {
-                      const cfg = statusConfig[b.status] || {
+                      const isPublished = b.status === 'published';
+                      const isLocked = b.status === 'locked';
+                      const isCancelled = b.status === 'cancelled';
+                      const openIssues = b.openIssuesCount ?? (b.unmatchedRows + b.conflictRows);
+                      const isReady = b.status === 'ready_to_publish' || (openIssues === 0 && !isPublished && !isLocked && !isCancelled);
+                      const isInReview = b.status === 'in_review' && openIssues > 0;
+                      const displayStatus = isReady && !isPublished && !isLocked && !isCancelled ? 'ready_to_publish' : b.status;
+                      const cfg = statusConfig[displayStatus] || {
                         label: b.status,
                         badgeClass: 'bg-slate-100 text-slate-700 border border-slate-200',
                         icon: '•',
                       };
-                      const isReady = b.status === 'ready_to_publish';
-                      const isPublished = b.status === 'published' || b.status === 'distributed';
-                      const isInReview = b.status === 'in_review';
-                      const openIssues = b.openIssuesCount ?? (b.unmatchedRows + b.conflictRows);
 
                       return (
                         <tr
@@ -297,6 +393,11 @@ export const BatchHistory: React.FC<BatchHistoryProps> = ({
                           <td className="px-4 py-3.5">
                             <div className="flex items-center gap-2">
                               <span className="font-bold text-slate-900">{DSP_CONFIGS[b.dspCode].label}</span>
+                              {b.hasActivePayout && (
+                                <span className="text-[10px] font-bold bg-amber-100 text-amber-800 px-1.5 py-0.2 rounded border border-amber-200">
+                                  Payout Aktif
+                                </span>
+                              )}
                             </div>
                             <div className="text-[12px] text-slate-500 max-w-[210px] truncate mt-0.5" title={b.fileName}>
                               {b.fileName}
@@ -392,13 +493,38 @@ export const BatchHistory: React.FC<BatchHistoryProps> = ({
 
                               {/* 4. If Published -> Option to Unpublish (PB-4.4) */}
                               {isPublished && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => setModalUnpublishBatch(b)}
+                                    title="Tarik kembali dari akun pencipta (PB-4.4)"
+                                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer text-[12px]"
+                                  >
+                                    ↩
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleConfirmLock(b)}
+                                    title="Kunci periode laporan permanen oleh Finance (Close Period)"
+                                    className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer text-[12px]"
+                                  >
+                                    🔒
+                                  </button>
+                                </>
+                              )}
+
+                              {/* 5. Cancel batch if in draft / review */}
+                              {(isInReview || isReady) && (
                                 <button
                                   type="button"
-                                  onClick={() => setModalUnpublishBatch(b)}
-                                  title="Tarik kembali dari akun pencipta (PB-4.4)"
+                                  onClick={() => {
+                                    setModalCancelBatch(b);
+                                    setCancelReason('');
+                                  }}
+                                  title="Batalkan batch sebelum terbit (PB-3.1)"
                                   className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer text-[12px]"
                                 >
-                                  ↩
+                                  ⊘
                                 </button>
                               )}
                             </div>
@@ -420,8 +546,10 @@ export const BatchHistory: React.FC<BatchHistoryProps> = ({
           {/* Status Hero Banner with Gatekeeper CTA */}
           {(() => {
             const isReady = selectedBatch.status === 'ready_to_publish';
-            const isPublished = selectedBatch.status === 'published' || selectedBatch.status === 'distributed';
+            const isPublished = selectedBatch.status === 'published';
             const isInReview = selectedBatch.status === 'in_review';
+            const isLocked = selectedBatch.status === 'locked';
+            const isCancelled = selectedBatch.status === 'cancelled';
             const openIssues = selectedBatch.openIssuesCount ?? (selectedBatch.unmatchedRows + selectedBatch.conflictRows);
 
             if (isReady) {
@@ -440,15 +568,28 @@ export const BatchHistory: React.FC<BatchHistoryProps> = ({
                       </p>
                     </div>
                   </div>
-                  <Button
-                    variant="secondary"
-                    size="md"
-                    onClick={() => setModalPublishBatch(selectedBatch)}
-                    className="bg-white hover:bg-blue-50 text-blue-700 font-bold border-transparent shrink-0 shadow-md cursor-pointer"
-                    iconLeft={<span>🚀</span>}
-                  >
-                    Distribusikan ke Pencipta Sekarang
-                  </Button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => {
+                        setModalCancelBatch(selectedBatch);
+                        setCancelReason('');
+                      }}
+                      className="bg-blue-800/60 hover:bg-blue-900 text-white border-blue-400/40"
+                    >
+                      Batalkan Batch
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="md"
+                      onClick={() => setModalPublishBatch(selectedBatch)}
+                      className="bg-white hover:bg-blue-50 text-blue-700 font-bold border-transparent shadow-md cursor-pointer"
+                      iconLeft={<span>🚀</span>}
+                    >
+                      Distribusikan ke Pencipta Sekarang
+                    </Button>
+                  </div>
                 </div>
               );
             }
@@ -466,21 +607,93 @@ export const BatchHistory: React.FC<BatchHistoryProps> = ({
                         <span className="text-[11px] font-semibold bg-emerald-200/60 text-emerald-800 px-2 py-0.5 rounded-full">
                           Published
                         </span>
+                        {selectedBatch.hasActivePayout && (
+                          <span className="text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded-full">
+                            ⚠️ Payout Aktif (Unpublish Diblokir)
+                          </span>
+                        )}
                       </div>
                       <p className="text-[13px] text-emerald-800 mt-0.5">
-                        Diterbitkan pada: <span className="font-semibold">{formatDate(selectedBatch.publishedAt)}</span> oleh <span className="font-semibold">{selectedBatch.publishedBy || 'Approver'}</span>. Data resmi tampil di Portal Pencipta.
+                        Diterbitkan pada: <span className="font-semibold">{formatDate(selectedBatch.publishedAt)}</span> oleh <span className="font-semibold">{selectedBatch.publishedBy || 'Approver'}</span>. {selectedBatch.viewedByCreatorsCount || 0} pencipta telah berinteraksi dengan laporan ini.
                       </p>
                     </div>
                   </div>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => setModalUnpublishBatch(selectedBatch)}
-                    className="text-rose-700 hover:text-rose-800 hover:bg-rose-50 border-rose-200 shrink-0"
-                    iconLeft={<span>↩</span>}
-                  >
-                    Tarik Kembali (Unpublish)
-                  </Button>
+                  <div className="flex flex-wrap items-center gap-2 shrink-0">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => handleTogglePayout(selectedBatch)}
+                      className={`text-[12px] ${
+                        selectedBatch.hasActivePayout
+                          ? 'bg-amber-100 border-amber-300 text-amber-900'
+                          : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
+                      }`}
+                      title="Uji coba aturan PB-4.4.4: saat payout aktif, aksi unpublish akan diblokir"
+                    >
+                      {selectedBatch.hasActivePayout ? '✓ Simulasi Payout Aktif' : 'Simulasi Payout (PB-4.4.4)'}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => handleConfirmLock(selectedBatch)}
+                      className="text-slate-700 hover:text-slate-900 hover:bg-slate-100 border-slate-300"
+                      iconLeft={<span>🔒</span>}
+                    >
+                      Tutup Periode (Lock)
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setModalUnpublishBatch(selectedBatch)}
+                      className="text-rose-700 hover:text-rose-800 hover:bg-rose-50 border-rose-200"
+                      iconLeft={<span>↩</span>}
+                    >
+                      Tarik Kembali (Unpublish)
+                    </Button>
+                  </div>
+                </div>
+              );
+            }
+
+            if (isLocked) {
+              return (
+                <div className="bg-slate-100 border border-slate-300 rounded-[14px] p-5 flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-12 h-12 rounded-xl bg-slate-200 text-slate-700 flex items-center justify-center text-2xl shrink-0">
+                      🔒
+                    </div>
+                    <div>
+                      <div className="text-[16px] font-bold text-slate-900 flex items-center gap-2">
+                        <span>Periode Laporan Resmi Dikunci (Locked)</span>
+                        <span className="text-[11px] font-semibold bg-slate-200 text-slate-800 px-2 py-0.5 rounded-full">
+                          Closed Period
+                        </span>
+                      </div>
+                      <p className="text-[13px] text-slate-600 mt-0.5">
+                        Dikunci oleh Finance pada <span className="font-semibold">{formatDate(selectedBatch.lockedAt)}</span>. Batch ini permanen dan tidak dapat diubah maupun di-unpublish (PB-4.4.2).
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
+            if (isCancelled) {
+              return (
+                <div className="bg-slate-100 border border-slate-300 rounded-[14px] p-5 flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-12 h-12 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center text-2xl shrink-0">
+                      ⊘
+                    </div>
+                    <div>
+                      <div className="text-[16px] font-bold text-slate-900">
+                        Batch Dibatalkan Sebelum Terbit (Cancelled)
+                      </div>
+                      <p className="text-[13px] text-slate-600 mt-0.5">
+                        Dibatalkan oleh <span className="font-semibold">{selectedBatch.cancelledBy || 'Admin'}</span> pada {formatDate(selectedBatch.cancelledAt)}. Alasan: <em>"{selectedBatch.cancelReason || 'Tidak disebutkan'}"</em>
+                      </p>
+                    </div>
+                  </div>
                 </div>
               );
             }
@@ -501,16 +714,29 @@ export const BatchHistory: React.FC<BatchHistoryProps> = ({
                       </p>
                     </div>
                   </div>
-                  {onNavigateToResolver && (
+                  <div className="flex items-center gap-2 shrink-0">
                     <Button
-                      variant="primary"
+                      variant="secondary"
                       size="sm"
-                      onClick={() => onNavigateToResolver(selectedBatch.batchId)}
-                      className="bg-amber-600 hover:bg-amber-700 text-white shrink-0"
+                      onClick={() => {
+                        setModalCancelBatch(selectedBatch);
+                        setCancelReason('');
+                      }}
+                      className="text-rose-700 border-rose-300 hover:bg-rose-50"
                     >
-                      Buka Resolver ({openIssues}) →
+                      Batalkan Batch
                     </Button>
-                  )}
+                    {onNavigateToResolver && (
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={() => onNavigateToResolver(selectedBatch.batchId)}
+                        className="bg-amber-600 hover:bg-amber-700 text-white"
+                      >
+                        Buka Resolver ({openIssues}) →
+                      </Button>
+                    )}
+                  </div>
                 </div>
               );
             }
@@ -616,6 +842,171 @@ export const BatchHistory: React.FC<BatchHistoryProps> = ({
               </div>
             </Card>
           )}
+        </div>
+      )}
+
+      {/* ── Cancel Batch Modal (PB-3.1 & 5.2) ────────────────── */}
+      {modalCancelBatch && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-slate-200">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center font-bold text-lg">
+                ⊘
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Batalkan Batch</h3>
+                <p className="text-xs text-slate-500">
+                  {modalCancelBatch.fileName} ({modalCancelBatch.period})
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 mb-4 leading-relaxed">
+              Batch yang dibatalkan tidak akan diterbitkan ke portal pencipta dan tidak akan dihitung dalam laporan keuangan. Aksi ini akan dicatat di Audit Log sebagai event <strong>BATCH_CANCELLED</strong>.
+            </p>
+
+            <div className="mb-4">
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Alasan Pembatalan <span className="text-rose-500">*</span>
+              </label>
+              <textarea
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="Contoh: Format file salah atau ada duplikasi impor data..."
+                rows={3}
+                className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setModalCancelBatch(null)}
+              >
+                Kembali
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleConfirmCancel}
+                disabled={cancelReason.trim().length < 5}
+                className="bg-rose-600 hover:bg-rose-700 text-white"
+              >
+                Konfirmasi Batalkan
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Audit Log Viewer Modal (PB-5.2) ───────────────────── */}
+      {showAuditLogsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold">
+                  📜
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    Audit Log Distribusi &amp; Publikasi Royalti
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    {auditFilterBatchId
+                      ? `Filter: Batch ${auditFilterBatchId}`
+                      : 'Semua rekam jejak otorisasi, penarikan, pembatalan, dan lock period (PB-5.2)'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {auditFilterBatchId && (
+                  <button
+                    onClick={() => setAuditFilterBatchId(null)}
+                    className="text-xs text-blue-600 hover:underline px-2 py-1"
+                  >
+                    Tampilkan Semua Batch
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowAuditLogsModal(false)}
+                  className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-200"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            <div className="p-5 overflow-y-auto space-y-3 flex-1 text-xs">
+              {auditLogsList.length === 0 ? (
+                <div className="text-center py-10 text-slate-400">
+                  Belum ada catatan aktivitas audit.
+                </div>
+              ) : (
+                auditLogsList.slice().reverse().map((log: AuditLog) => {
+                  const isHigh = log.priority === 'HIGH' || log.action === 'BATCH_UNPUBLISHED';
+                  const isPublish = log.action === 'BATCH_PUBLISHED' || log.action === 'BATCH_PUBLISH_OVERRIDE';
+                  const isLock = log.action === 'BATCH_LOCKED';
+                  const isCancel = log.action === 'BATCH_CANCELLED';
+
+                  return (
+                    <div
+                      key={log.id}
+                      className={`p-3.5 rounded-xl border flex items-start gap-3 ${
+                        isHigh
+                          ? 'bg-rose-50/70 border-rose-200 text-rose-950'
+                          : isPublish
+                          ? 'bg-emerald-50/70 border-emerald-200 text-emerald-950'
+                          : isLock
+                          ? 'bg-slate-50 border-slate-300 text-slate-900'
+                          : isCancel
+                          ? 'bg-amber-50/70 border-amber-200 text-amber-950'
+                          : 'bg-white border-slate-200 text-slate-800'
+                      }`}
+                    >
+                      <span className="text-base shrink-0 mt-0.5">
+                        {isHigh ? '🚨' : isPublish ? '🚀' : isLock ? '🔒' : isCancel ? '⊘' : '📝'}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-bold tracking-tight text-[12px] uppercase">
+                            {log.action}
+                          </span>
+                          <span className="text-[11px] text-slate-400 font-mono">
+                            {formatDate(log.timestamp)}
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-slate-600 mt-1">
+                          Aktor: <span className="font-semibold text-slate-800">{log.actorId}</span> · Target: <span className="font-mono">{log.targetType} ({log.targetId})</span>
+                        </div>
+                        {log.reason && (
+                          <div className="text-[11px] text-slate-700 mt-1 bg-white/70 p-2 rounded border border-black/5">
+                            <strong>Alasan:</strong> {log.reason}
+                          </div>
+                        )}
+                        {log.after && (
+                          <div className="text-[10px] text-slate-500 font-mono mt-1 truncate">
+                            Data: {JSON.stringify(log.after)}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setShowAuditLogsModal(false)}
+              >
+                Tutup
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 

@@ -5,6 +5,8 @@ export interface SongItem {
   adsRev: number;
   subsRev: number;
   customId?: string;
+  dsp?: string;
+  dspBreakdown?: Record<string, number>;
 }
 
 export interface CountryShare {
@@ -21,13 +23,21 @@ export interface Creator {
   netRoyalty: number;
   adsRev: number;
   subsRev: number;
-  platformShares: number[]; // [YouTube Ads %, YouTube Subs %]
+  platformShares: number[]; // [YouTube Ads %, YouTube Subs %] or DSP %
   youtubeBreakdown: {
     adsPct: number;
     subsPct: number;
     adsRev: number;
     subsRev: number;
   };
+  dspBreakdown?: {
+    youtube: number;
+    spotify: number;
+    appleMusic: number;
+    other: number;
+  };
+  dominantDsp?: string;
+  dspPlatforms?: { name: string; amount: number; percentage: number; color: string }[];
   status: 'Dibayar' | 'Menunggu' | 'Perlu dicek';
   isRealStatement: boolean;
   songsList: SongItem[];

@@ -26,15 +26,13 @@ export type ResolutionType =
   | 'backfill';
 export type ResolutionScope = 'row' | 'batch' | 'all_open_batches';
 export type BatchStatus =
-  | 'uploaded'
-  | 'in_review'
-  | 'ready_to_publish'
-  | 'published'
-  | 'locked'
-  | 'cancelled'
-  | 'failed'
-  | 'validated'
-  | 'distributed';
+  | 'uploaded'           // Baru diunggah, struktur divalidasi
+  | 'in_review'          // Ada isu open / selisih rekonsiliasi
+  | 'ready_to_publish'   // Bersih dan siap terbit
+  | 'published'          // Sudah terbit ke akun pencipta
+  | 'locked'             // Periode ditutup permanen
+  | 'cancelled'          // Dibatalkan sebelum terbit
+  | 'failed';            // Gagal parsing / validasi
 export type IssueStatus = 'open' | 'resolved' | 'on_hold' | 'ignored';
 export type RightType = 'Mechanical' | 'Performance' | 'Synchronization';
 
@@ -85,6 +83,7 @@ export interface AuditLog {
   before: any;
   after: any;
   reason?: string;
+  priority?: 'HIGH' | 'NORMAL';
 }
 
 export interface SongRights {
@@ -167,6 +166,12 @@ export interface RoyaltyBatch {
   unpublishedAt?: string;
   unpublishReason?: string;
   viewedByCreatorsCount?: number;
+  hasActivePayout?: boolean;
+  cancelledAt?: string;
+  cancelledBy?: string;
+  cancelReason?: string;
+  lockedAt?: string;
+  lockedBy?: string;
   createdAt: string;
   sourceRows: MatchedSourceRow[];
   distributions: DistributionResult[];
@@ -299,49 +304,45 @@ export const DSP_CONFIGS: Record<DSPCode, DSPColumnMapping> = {
 
 // ─── Initialization with sample data from Excel ──────
 export function initializeSampleData() {
-  // Sample song_dsp_asset mappings (derived from Excel report)
+  // Registered song_dsp_asset mappings across all 4 DSPs (PRD FR-3a)
   songDspAssets = [
+    // 1. YouTube Assets
+    { songId: 'L000678', dspCode: 'YOUTUBE', assetId: 'A190284573018264', status: 'active' },
     { songId: 'L000689', dspCode: 'YOUTUBE', assetId: 'A167377446199103', status: 'active' },
     { songId: 'L000705', dspCode: 'YOUTUBE', assetId: 'A228849931082495', status: 'active' },
-    { songId: 'L000706', dspCode: 'YOUTUBE', assetId: 'A311526478290561', status: 'active' },
-    { songId: 'L000678', dspCode: 'YOUTUBE', assetId: 'A190284573018264', status: 'active' },
-    // More can be added from report
+    { songId: 'L000788', dspCode: 'YOUTUBE', assetId: 'A311526478290561', status: 'active' },
+    { songId: 'L000712', dspCode: 'YOUTUBE', assetId: 'A41928374619283', status: 'active' },
+    { songId: 'L000801', dspCode: 'YOUTUBE', assetId: 'A61928374619284', status: 'active' },
+    { songId: 'L000815', dspCode: 'YOUTUBE', assetId: 'A71829301928374', status: 'active' },
+
+    // 2. Spotify Track URIs & Base-62 IDs
+    { songId: 'L000678', dspCode: 'SPOTIFY', assetId: 'spotify:track:6rqhFgbbKwnb9MLmUQDhG6', status: 'active' },
+    { songId: 'L000689', dspCode: 'SPOTIFY', assetId: 'spotify:track:4cOdK2wGUTZTA9', status: 'active' },
+    { songId: 'L000705', dspCode: 'SPOTIFY', assetId: 'spotify:track:3n3Ppam7vgaVa1iaRUc9Lp', status: 'active' },
+    { songId: 'L000788', dspCode: 'SPOTIFY', assetId: 'spotify:track:7qiZfU4dY1lWllzX7mPBI3', status: 'active' },
+    { songId: 'L000712', dspCode: 'SPOTIFY', assetId: 'spotify:track:1dGr1nsAZOsAcR86bGQeh2', status: 'active' },
+    { songId: 'L000801', dspCode: 'SPOTIFY', assetId: 'spotify:track:2xYmP8qRtW1oKl', status: 'active' },
+    { songId: 'L000815', dspCode: 'SPOTIFY', assetId: 'spotify:track:4aBpLmKoPrStUv', status: 'active' },
+
+    // 3. Apple Music IDs / Storefront
+    { songId: 'L000678', dspCode: 'APPLE_MUSIC', assetId: 'apple:track:1583928192', status: 'active' },
+    { songId: 'L000689', dspCode: 'APPLE_MUSIC', assetId: 'apple:track:1649201948', status: 'active' },
+    { songId: 'L000705', dspCode: 'APPLE_MUSIC', assetId: 'apple:track:1702849182', status: 'active' },
+    { songId: 'L000788', dspCode: 'APPLE_MUSIC', assetId: 'apple:track:1440857781', status: 'active' },
+    { songId: 'L000712', dspCode: 'APPLE_MUSIC', assetId: 'apple:track:1829304918', status: 'active' },
+    { songId: 'L000801', dspCode: 'APPLE_MUSIC', assetId: 'apple:track:1392817263', status: 'active' },
+
+    // 4. Other DSPs (TikTok, Deezer, Joox, Smule)
+    { songId: 'L000678', dspCode: 'OTHER', assetId: 'TK-928173491', status: 'active' },
+    { songId: 'L000689', dspCode: 'OTHER', assetId: 'JX-82736154', status: 'active' },
+    { songId: 'L000705', dspCode: 'OTHER', assetId: 'DZR-4491028', status: 'active' },
+    { songId: 'L000788', dspCode: 'OTHER', assetId: 'TK-881923011', status: 'active' },
+    { songId: 'L000712', dspCode: 'OTHER', assetId: 'RS-71928374', status: 'active' },
+    { songId: 'L000801', dspCode: 'OTHER', assetId: 'TK-771928301', status: 'active' },
   ];
 
-  // Sample song rights (from the composition data)
+  // Sample song rights (70% Pencipta / 30% Publisher LOKA)
   songRights = [
-    {
-      songId: 'L000689',
-      songTitle: 'Tuhan Itu Baik',
-      ipName: 'Immanuel Andriano Kure',
-      ipbaseNo: 'I-005719967-1',
-      ipRole: 'Composer',
-      perOwn: 70, mecOwn: 70, synOwn: 70,
-    },
-    {
-      songId: 'L000689',
-      songTitle: 'Tuhan Itu Baik',
-      ipName: 'LOKA Publishing',
-      ipbaseNo: 'I-007560847-6',
-      ipRole: 'Publisher',
-      perOwn: 30, mecOwn: 30, synOwn: 30,
-    },
-    {
-      songId: 'L000705',
-      songTitle: 'Mulai & Pergi',
-      ipName: 'Immanuel Andriano Kure',
-      ipbaseNo: 'I-005719967-1',
-      ipRole: 'Composer',
-      perOwn: 70, mecOwn: 70, synOwn: 70,
-    },
-    {
-      songId: 'L000705',
-      songTitle: 'Mulai & Pergi',
-      ipName: 'LOKA Publishing',
-      ipbaseNo: 'I-007560847-6',
-      ipRole: 'Publisher',
-      perOwn: 30, mecOwn: 30, synOwn: 30,
-    },
     {
       songId: 'L000678',
       songTitle: 'Turah Wani',
@@ -358,237 +359,195 @@ export function initializeSampleData() {
       ipRole: 'Publisher',
       perOwn: 30, mecOwn: 30, synOwn: 30,
     },
+    {
+      songId: 'L000689',
+      songTitle: 'Tuhan Itu Baik',
+      ipName: 'Immanuel Andriano Kure',
+      ipbaseNo: 'I-005719967-1',
+      ipRole: 'Composer',
+      perOwn: 70, mecOwn: 70, synOwn: 70,
+    },
+    {
+      songId: 'L000689',
+      songTitle: 'Tuhan Itu Baik',
+      ipName: 'LOKA Publishing',
+      ipbaseNo: 'I-007560847-6',
+      ipRole: 'Publisher',
+      perOwn: 30, mecOwn: 30, synOwn: 30,
+    },
+    {
+      songId: 'L000705',
+      songTitle: 'Mulai & Pergi',
+      ipName: 'Immanuel Andriano Kure',
+      ipbaseNo: 'I-005719967-1',
+      ipRole: 'Composer',
+      perOwn: 70, mecOwn: 70, synOwn: 70,
+    },
+    {
+      songId: 'L000705',
+      songTitle: 'Mulai & Pergi',
+      ipName: 'LOKA Publishing',
+      ipbaseNo: 'I-007560847-6',
+      ipRole: 'Publisher',
+      perOwn: 30, mecOwn: 30, synOwn: 30,
+    },
+    {
+      songId: 'L000788',
+      songTitle: 'Karna Su Sayang',
+      ipName: 'Immanuel Andriano Kure',
+      ipbaseNo: 'I-005719967-1',
+      ipRole: 'Composer',
+      perOwn: 70, mecOwn: 70, synOwn: 70,
+    },
+    {
+      songId: 'L000788',
+      songTitle: 'Karna Su Sayang',
+      ipName: 'LOKA Publishing',
+      ipbaseNo: 'I-007560847-6',
+      ipRole: 'Publisher',
+      perOwn: 30, mecOwn: 30, synOwn: 30,
+    },
+    {
+      songId: 'L000712',
+      songTitle: 'Bilang Pada Tuhanmu',
+      ipName: 'Immanuel Andriano Kure',
+      ipbaseNo: 'I-005719967-1',
+      ipRole: 'Composer',
+      perOwn: 70, mecOwn: 70, synOwn: 70,
+    },
+    {
+      songId: 'L000712',
+      songTitle: 'Bilang Pada Tuhanmu',
+      ipName: 'LOKA Publishing',
+      ipbaseNo: 'I-007560847-6',
+      ipRole: 'Publisher',
+      perOwn: 30, mecOwn: 30, synOwn: 30,
+    },
+    {
+      songId: 'L000801',
+      songTitle: 'Kopi Dangdut Remix',
+      ipName: 'Herman Andrew Bong',
+      ipbaseNo: 'I-009182736-4',
+      ipRole: 'Composer',
+      perOwn: 70, mecOwn: 70, synOwn: 70,
+    },
+    {
+      songId: 'L000801',
+      songTitle: 'Kopi Dangdut Remix',
+      ipName: 'LOKA Publishing',
+      ipbaseNo: 'I-007560847-6',
+      ipRole: 'Publisher',
+      perOwn: 30, mecOwn: 30, synOwn: 30,
+    },
+    {
+      songId: 'L000815',
+      songTitle: 'Senja di Kota Ini',
+      ipName: 'Dhandy Satria Jatmikanto',
+      ipbaseNo: 'I-008271635-3',
+      ipRole: 'Composer',
+      perOwn: 70, mecOwn: 70, synOwn: 70,
+    },
+    {
+      songId: 'L000815',
+      songTitle: 'Senja di Kota Ini',
+      ipName: 'LOKA Publishing',
+      ipbaseNo: 'I-007560847-6',
+      ipRole: 'Publisher',
+      perOwn: 30, mecOwn: 30, synOwn: 30,
+    },
   ];
 
-  // Initialize demo batch representing Report Loka Publishing Mei 2026.xlsx
-  const totalLokaPool = 983196.08; // 85% net revenue received by LOKA after 15% Alfa cut
-  const totalSourceGross = 1156701.27; // 100% YouTube gross
+  // Helper to build 70/30 distribution pairs for any DSP
+  const makeDistPair = (
+    batchId: string,
+    dspCode: DSPCode,
+    songId: string,
+    assetId: string,
+    creatorName: string,
+    creatorIpbase: string,
+    grossAmount: number,
+    country: string = 'ID',
+    day: string = '2026-05',
+    rightType: string = 'Mechanical'
+  ): DistributionResult[] => {
+    const creatorNet = Math.round(grossAmount * 0.70);
+    const pubNet = grossAmount - creatorNet; // exact 30% remainder so sum === grossAmount
 
-  const sampleDists: DistributionResult[] = [];
-  const totalCreatorsGrossSum = 1156594;
-
-  for (const c of realData.creators) {
-    const songLokaPool = (c.totalRoyalty / totalCreatorsGrossSum) * totalLokaPool;
-    const creatorShare = songLokaPool * 0.70; // 70% Hak Pencipta
-    const publisherShare = songLokaPool * 0.30; // 30% Hak Publisher LOKA
-    const ipbaseNo = `IP-${c.name.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 10)}`;
-
-    const songsCount = c.songsList.length || 1;
-    for (const song of c.songsList) {
-      const songRatio = c.totalRoyalty > 0 ? song.amount / c.totalRoyalty : 1 / songsCount;
-      const songCreatorShare = creatorShare * songRatio;
-      const songPubShare = publisherShare * songRatio;
-
-      // 1. Creator distribution (70%)
-      sampleDists.push({
+    return [
+      {
         distId: genId(),
-        batchId: 'batch-demo-mei-2026',
+        batchId,
         rowId: 'row-' + genId(),
-        songId: song.customId || 'S-' + genId(),
-        assetId: 'A-' + genId(),
-        ipbaseNo,
-        ipName: c.name,
-        rightType: 'Mechanical',
+        songId,
+        assetId,
+        ipbaseNo: creatorIpbase,
+        ipName: creatorName,
+        rightType,
         percentage: 70,
-        distMr: songCreatorShare,
-        dspCode: 'YOUTUBE',
-        country: 'ID',
-        day: '2026-05',
-      });
-
-      // 2. Publisher LOKA distribution (30%)
-      sampleDists.push({
+        distMr: creatorNet,
+        dspCode,
+        country,
+        day,
+      },
+      {
         distId: genId(),
-        batchId: 'batch-demo-mei-2026',
-        rowId: 'row-' + genId(),
-        songId: song.customId || 'S-' + genId(),
-        assetId: 'A-' + genId(),
+        batchId,
+        rowId: 'row-pub-' + genId(),
+        songId,
+        assetId,
         ipbaseNo: 'I-007560847-6',
         ipName: 'LOKA Publishing',
-        rightType: 'Mechanical',
+        rightType,
         percentage: 30,
-        distMr: songPubShare,
-        dspCode: 'YOUTUBE',
-        country: 'ID',
-        day: '2026-05',
-      });
-    }
-  }
+        distMr: pubNet,
+        dspCode,
+        country,
+        day,
+      },
+    ];
+  };
 
-  // Sample Exception Rows for PRD v1.1 Unmatched & Conflict Resolver
-  const sampleExceptionRows: MatchedSourceRow[] = [
-    {
-      rowId: 'row-err-01',
-      batchId: 'batch-demo-mei-2026',
-      dsp: 'YOUTUBE',
-      originalRow: {
-        rowIndex: 142,
-        day: '2026-05',
-        assetId: 'A98210928172654',
-        customId: 'L000788',
-        writers: 'Immanuel Andriano Kure',
-        songTitle: 'Karna Su Sayang (Acoustic Remaster)',
-        incomeRev: 24.50,
-        currency: 'USD',
-        idrRev: 367500,
-        country: 'ID',
-        rightType: 'Mechanical',
-        adjustmentType: 'None',
-      },
-      matchStatus: 'unmatched',
-      failedStage: 1,
-      failureFlags: [1],
-      failureReason: 'Tahap 1: Asset ID A98210928172654 belum terpetakan ke lagu LOKA',
-      matchedSongId: null,
-      ageDays: 5,
-      version: 1,
-    },
-    {
-      rowId: 'row-err-02',
-      batchId: 'batch-demo-mei-2026',
-      dsp: 'SPOTIFY',
-      originalRow: {
-        rowIndex: 219,
-        day: '2026-05',
-        assetId: 'spotify:track:4cOdK2wGUTZTA9',
-        customId: 'L000689',
-        writers: 'Immanuel K.',
-        songTitle: 'Tuhan Itu Baik',
-        incomeRev: 18.20,
-        currency: 'USD',
-        idrRev: 273000,
-        country: 'ID',
-        rightType: 'Mechanical',
-        adjustmentType: 'None',
-      },
-      matchStatus: 'unmatched',
-      failedStage: 2,
-      failureFlags: [2],
-      failureReason: 'Tahap 2: Writer "Immanuel K." belum terdaftar sebagai alias resmi IPBASE NO',
-      matchedSongId: 'L000689',
-      unmappedWriters: ['Immanuel K.'],
-      ageDays: 12,
-      version: 1,
-    },
-    {
-      rowId: 'row-err-03',
-      batchId: 'batch-demo-mei-2026',
-      dsp: 'YOUTUBE',
-      originalRow: {
-        rowIndex: 308,
-        day: '2026-05',
-        assetId: 'A190284573018264',
-        customId: 'L000705',
-        writers: 'Tomo Widayat / Immanuel Andriano Kure',
-        songTitle: 'Turah Wani x Mulai & Pergi Mashup',
-        incomeRev: 35.80,
-        currency: 'USD',
-        idrRev: 537000,
-        country: 'ID',
-        rightType: 'Mechanical',
-        adjustmentType: 'None',
-      },
-      matchStatus: 'conflict',
-      failedStage: null,
-      failureFlags: [1, 3],
-      failureReason: 'Konflik: Asset ID mengarah ke "Turah Wani", tetapi Custom ID mengarah ke "Mulai & Pergi"',
-      matchedSongId: null,
-      candidateSongIdByAsset: 'L000678',
-      candidateSongIdByCustomId: 'L000705',
-      ageDays: 34, // > 30 days marked Menua
-      version: 1,
-    },
-    {
-      rowId: 'row-err-04',
-      batchId: 'batch-demo-mei-2026',
-      dsp: 'APPLE_MUSIC',
-      originalRow: {
-        rowIndex: 412,
-        day: '2026-05',
-        assetId: 'apple:track:192837461',
-        customId: 'L000999_TYPO',
-        writers: 'Immanuel Andriano Kure',
-        songTitle: 'Mulai & Pergi',
-        incomeRev: 12.00,
-        currency: 'USD',
-        idrRev: 180000,
-        country: 'MY',
-        rightType: 'Mechanical',
-        adjustmentType: 'None',
-      },
-      matchStatus: 'unmatched',
-      failedStage: 3,
-      failureFlags: [3],
-      failureReason: 'Tahap 3: Custom ID "L000999_TYPO" tidak terdaftar di katalog LOKA',
-      matchedSongId: null,
-      ageDays: 8,
-      version: 1,
-    },
-    {
-      rowId: 'row-err-05',
-      batchId: 'batch-demo-mei-2026',
-      dsp: 'YOUTUBE',
-      originalRow: {
-        rowIndex: 550,
-        day: '2026-05',
-        assetId: 'A77123984712093',
-        customId: 'L000888',
-        writers: 'Artis Indie Tamu',
-        songTitle: 'Kompilasi Dangdut Cover 2026',
-        incomeRev: 8.50,
-        currency: 'USD',
-        idrRev: 127500,
-        country: 'ID',
-        rightType: 'Mechanical',
-        adjustmentType: 'None',
-      },
-      matchStatus: 'ignored',
-      failedStage: 1,
-      failureFlags: [1],
-      failureReason: 'Diabaikan: Bukan Katalog LOKA (Lagu cover pihak ketiga)',
-      matchedSongId: null,
-      resolutionReason: 'Karya bukan milik publisher LOKA',
-      resolvedBy: 'Admin Royalti',
-      ageDays: 19,
-      version: 2,
-    },
-    {
-      rowId: 'row-err-06',
-      batchId: 'batch-demo-mei-2026',
-      dsp: 'SPOTIFY',
-      originalRow: {
-        rowIndex: 604,
-        day: '2026-05',
-        assetId: 'spotify:track:998127391',
-        customId: 'L000689',
-        writers: 'Komposer Baru X',
-        songTitle: 'Tuhan Itu Baik (Collab Version)',
-        incomeRev: 21.00,
-        currency: 'USD',
-        idrRev: 315000,
-        country: 'ID',
-        rightType: 'Mechanical',
-        adjustmentType: 'None',
-      },
-      matchStatus: 'on_hold',
-      failedStage: 2,
-      failureFlags: [2],
-      failureReason: 'Ditahan: Menunggu verifikasi surat kuasa hak cipta komposer tambahan',
-      matchedSongId: 'L000689',
-      holdUntil: '2026-10-15',
-      resolutionReason: 'Menunggu konfirmasi tim Legal perihal split artis kolaborator',
-      resolvedBy: 'Admin Royalti',
-      ageDays: 14,
-      version: 2,
-    },
+  // ─── 1. SPOTIFY BATCH DISTRIBUTIONS (Total Gross: Rp 5.420.000) ──────
+  const spotifyDists: DistributionResult[] = [
+    ...makeDistPair('batch-spotify-mei-2026', 'SPOTIFY', 'L000788', 'spotify:track:7qiZfU4dY1lWllzX7mPBI3', 'Immanuel Andriano Kure', 'I-005719967-1', 2800000, 'ID'),
+    ...makeDistPair('batch-spotify-mei-2026', 'SPOTIFY', 'L000712', 'spotify:track:1dGr1nsAZOsAcR86bGQeh2', 'Immanuel Andriano Kure', 'I-005719967-1', 950000, 'ID'),
+    ...makeDistPair('batch-spotify-mei-2026', 'SPOTIFY', 'L000678', 'spotify:track:6rqhFgbbKwnb9MLmUQDhG6', 'Tomo Widayat', 'I-005719967-2', 680000, 'MY'),
+    ...makeDistPair('batch-spotify-mei-2026', 'SPOTIFY', 'L000689', 'spotify:track:4cOdK2wGUTZTA9', 'Immanuel Andriano Kure', 'I-005719967-1', 420000, 'SG'),
+    ...makeDistPair('batch-spotify-mei-2026', 'SPOTIFY', 'L000815', 'spotify:track:4aBpLmKoPrStUv', 'Dhandy Satria Jatmikanto', 'I-008271635-3', 320000, 'ID'),
+    ...makeDistPair('batch-spotify-mei-2026', 'SPOTIFY', 'L000801', 'spotify:track:2xYmP8qRtW1oKl', 'Herman Andrew Bong', 'I-009182736-4', 250000, 'ID'),
   ];
 
-  // 1. Published Historical Batch (Q1 2026) so creators have verified baseline statements
+  // ─── 2. YOUTUBE BATCH DISTRIBUTIONS (Total Gross: Rp 3.850.000) ──────
+  const youtubeDists: DistributionResult[] = [
+    ...makeDistPair('batch-youtube-mei-2026', 'YOUTUBE', 'L000678', 'A190284573018264', 'Tomo Widayat', 'I-005719967-2', 1450000, 'ID'),
+    ...makeDistPair('batch-youtube-mei-2026', 'YOUTUBE', 'L000788', 'A311526478290561', 'Immanuel Andriano Kure', 'I-005719967-1', 1100000, 'ID'),
+    ...makeDistPair('batch-youtube-mei-2026', 'YOUTUBE', 'L000689', 'A167377446199103', 'Immanuel Andriano Kure', 'I-005719967-1', 620000, 'ID'),
+    ...makeDistPair('batch-youtube-mei-2026', 'YOUTUBE', 'L000705', 'A228849931082495', 'Immanuel Andriano Kure', 'I-005719967-1', 480000, 'ID'),
+    ...makeDistPair('batch-youtube-mei-2026', 'YOUTUBE', 'L000815', 'A71829301928374', 'Dhandy Satria Jatmikanto', 'I-008271635-3', 200000, 'ID'),
+  ];
+
+  // ─── 3. APPLE MUSIC BATCH DISTRIBUTIONS (Total Gross: Rp 2.980.000) ──
+  const appleDists: DistributionResult[] = [
+    ...makeDistPair('batch-apple-mei-2026', 'APPLE_MUSIC', 'L000788', 'apple:track:1440857781', 'Immanuel Andriano Kure', 'I-005719967-1', 1620000, 'US'),
+    ...makeDistPair('batch-apple-mei-2026', 'APPLE_MUSIC', 'L000678', 'apple:track:1583928192', 'Tomo Widayat', 'I-005719967-2', 540000, 'SG'),
+    ...makeDistPair('batch-apple-mei-2026', 'APPLE_MUSIC', 'L000712', 'apple:track:1829304918', 'Immanuel Andriano Kure', 'I-005719967-1', 480000, 'ID'),
+    ...makeDistPair('batch-apple-mei-2026', 'APPLE_MUSIC', 'L000801', 'apple:track:1392817263', 'Herman Andrew Bong', 'I-009182736-4', 340000, 'JP'),
+  ];
+
+  // ─── 4. DSP LAINNYA BATCH (TikTok / Joox / Deezer) (Total Gross: Rp 1.650.000)
+  const otherDists: DistributionResult[] = [
+    ...makeDistPair('batch-other-mei-2026', 'OTHER', 'L000788', 'TK-881923011', 'Immanuel Andriano Kure', 'I-005719967-1', 820000, 'ID', '2026-05', 'Synchronization'),
+    ...makeDistPair('batch-other-mei-2026', 'OTHER', 'L000678', 'TK-928173491', 'Tomo Widayat', 'I-005719967-2', 430000, 'ID', '2026-05', 'Synchronization'),
+    ...makeDistPair('batch-other-mei-2026', 'OTHER', 'L000801', 'TK-771928301', 'Herman Andrew Bong', 'I-009182736-4', 250000, 'ID', '2026-05', 'Synchronization'),
+    ...makeDistPair('batch-other-mei-2026', 'OTHER', 'L000689', 'JX-82736154', 'Immanuel Andriano Kure', 'I-005719967-1', 150000, 'MY', '2026-05', 'Mechanical'),
+  ];
+
+  // ─── 5. Historical Q1 Multi-DSP Batch ────────────────
   const sampleQ1Dists: DistributionResult[] = [];
-  for (const c of realData.creators) {
-    const songGross = c.totalRoyalty * 0.85;
-    const creatorNet = songGross * 0.70;
-    const pubNet = songGross * 0.30;
+  for (const c of realData.creators.slice(0, 8)) {
+    const songGross = Math.round(c.totalRoyalty * 4.5);
+    const creatorNet = Math.round(songGross * 0.70);
+    const pubNet = songGross - creatorNet;
     const ipbaseNo = `IP-${c.name.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 10)}`;
 
     sampleQ1Dists.push({
@@ -602,7 +561,7 @@ export function initializeSampleData() {
       rightType: 'Mechanical',
       percentage: 70,
       distMr: creatorNet,
-      dspCode: 'YOUTUBE',
+      dspCode: 'SPOTIFY',
       country: 'ID',
       day: '2026-03',
     });
@@ -617,11 +576,179 @@ export function initializeSampleData() {
       rightType: 'Mechanical',
       percentage: 30,
       distMr: pubNet,
-      dspCode: 'YOUTUBE',
+      dspCode: 'SPOTIFY',
       country: 'ID',
       day: '2026-03',
     });
   }
+
+  // Sample Exception Rows for PRD v1.1 Unmatched & Conflict Resolver across DSPs
+  const sampleExceptionRows: MatchedSourceRow[] = [
+    {
+      rowId: 'row-err-01',
+      batchId: 'batch-demo-mei-2026',
+      dsp: 'YOUTUBE',
+      originalRow: {
+        rowIndex: 142,
+        day: '2026-06',
+        assetId: 'A98210928172654',
+        customId: 'L000788',
+        writers: 'Immanuel Andriano Kure',
+        songTitle: 'Karna Su Sayang (Acoustic Remaster)',
+        incomeRev: 24.50,
+        currency: 'USD',
+        idrRev: 367500,
+        country: 'ID',
+        rightType: 'Mechanical',
+        adjustmentType: 'None',
+      },
+      matchStatus: 'unmatched',
+      failedStage: 1,
+      failureFlags: [1],
+      failureReason: 'Tahap 1: Asset ID YouTube A98210928172654 belum terpetakan ke lagu LOKA',
+      matchedSongId: null,
+      ageDays: 5,
+      version: 1,
+    },
+    {
+      rowId: 'row-err-02',
+      batchId: 'batch-demo-mei-2026',
+      dsp: 'SPOTIFY',
+      originalRow: {
+        rowIndex: 219,
+        day: '2026-06',
+        assetId: 'spotify:track:4cOdK2wGUTZTA9',
+        customId: 'L000689',
+        writers: 'Immanuel K.',
+        songTitle: 'Tuhan Itu Baik',
+        incomeRev: 18.20,
+        currency: 'USD',
+        idrRev: 273000,
+        country: 'ID',
+        rightType: 'Mechanical',
+        adjustmentType: 'None',
+      },
+      matchStatus: 'unmatched',
+      failedStage: 2,
+      failureFlags: [2],
+      failureReason: 'Tahap 2: Writer Spotify "Immanuel K." belum terdaftar sebagai alias resmi IPBASE NO',
+      matchedSongId: 'L000689',
+      unmappedWriters: ['Immanuel K.'],
+      ageDays: 12,
+      version: 1,
+    },
+    {
+      rowId: 'row-err-03',
+      batchId: 'batch-demo-mei-2026',
+      dsp: 'YOUTUBE',
+      originalRow: {
+        rowIndex: 308,
+        day: '2026-06',
+        assetId: 'A190284573018264',
+        customId: 'L000705',
+        writers: 'Tomo Widayat / Immanuel Andriano Kure',
+        songTitle: 'Turah Wani x Mulai & Pergi Mashup',
+        incomeRev: 35.80,
+        currency: 'USD',
+        idrRev: 537000,
+        country: 'ID',
+        rightType: 'Mechanical',
+        adjustmentType: 'None',
+      },
+      matchStatus: 'conflict',
+      failedStage: null,
+      failureFlags: [1, 3],
+      failureReason: 'Konflik: Asset ID YouTube mengarah ke "Turah Wani", tetapi Custom ID mengarah ke "Mulai & Pergi"',
+      matchedSongId: null,
+      candidateSongIdByAsset: 'L000678',
+      candidateSongIdByCustomId: 'L000705',
+      ageDays: 34,
+      version: 1,
+    },
+    {
+      rowId: 'row-err-04',
+      batchId: 'batch-demo-mei-2026',
+      dsp: 'APPLE_MUSIC',
+      originalRow: {
+        rowIndex: 412,
+        day: '2026-06',
+        assetId: 'apple:track:192837461',
+        customId: 'L000999_TYPO',
+        writers: 'Immanuel Andriano Kure',
+        songTitle: 'Mulai & Pergi',
+        incomeRev: 12.00,
+        currency: 'USD',
+        idrRev: 180000,
+        country: 'MY',
+        rightType: 'Mechanical',
+        adjustmentType: 'None',
+      },
+      matchStatus: 'unmatched',
+      failedStage: 3,
+      failureFlags: [3],
+      failureReason: 'Tahap 3: Custom ID Apple Music "L000999_TYPO" tidak terdaftar di katalog LOKA',
+      matchedSongId: null,
+      ageDays: 8,
+      version: 1,
+    },
+    {
+      rowId: 'row-err-05',
+      batchId: 'batch-demo-mei-2026',
+      dsp: 'OTHER',
+      originalRow: {
+        rowIndex: 550,
+        day: '2026-06',
+        assetId: 'TK-77123984712',
+        customId: 'L000888',
+        writers: 'Artis Indie Tamu',
+        songTitle: 'Kompilasi Dangdut TikTok Cover 2026',
+        incomeRev: 8.50,
+        currency: 'USD',
+        idrRev: 127500,
+        country: 'ID',
+        rightType: 'Synchronization',
+        adjustmentType: 'None',
+      },
+      matchStatus: 'ignored',
+      failedStage: 1,
+      failureFlags: [1],
+      failureReason: 'Diabaikan: Bukan Katalog LOKA (Sound TikTok cover pihak ketiga)',
+      matchedSongId: null,
+      resolutionReason: 'Karya bukan milik publisher LOKA',
+      resolvedBy: 'Admin Royalti',
+      ageDays: 19,
+      version: 2,
+    },
+    {
+      rowId: 'row-err-06',
+      batchId: 'batch-demo-mei-2026',
+      dsp: 'SPOTIFY',
+      originalRow: {
+        rowIndex: 604,
+        day: '2026-06',
+        assetId: 'spotify:track:998127391',
+        customId: 'L000689',
+        writers: 'Komposer Baru X',
+        songTitle: 'Tuhan Itu Baik (Collab Version)',
+        incomeRev: 21.00,
+        currency: 'USD',
+        idrRev: 315000,
+        country: 'ID',
+        rightType: 'Mechanical',
+        adjustmentType: 'None',
+      },
+      matchStatus: 'on_hold',
+      failedStage: 2,
+      failureFlags: [2],
+      failureReason: 'Ditahan: Menunggu verifikasi surat kuasa hak cipta komposer kolaborator Spotify',
+      matchedSongId: 'L000689',
+      holdUntil: '2026-10-15',
+      resolutionReason: 'Menunggu konfirmasi tim Legal perihal split artis kolaborator',
+      resolvedBy: 'Admin Royalti',
+      ageDays: 14,
+      version: 2,
+    },
+  ];
 
   // Set issueStatus on sampleExceptionRows
   for (const r of sampleExceptionRows) {
@@ -636,17 +763,128 @@ export function initializeSampleData() {
     }
   }
 
+  // Sample Draft May Distributions
+  const sampleDraftDists: DistributionResult[] = [
+    ...makeDistPair('batch-demo-mei-2026', 'SPOTIFY', 'L000788', 'spotify:track:7qiZfU4dY1lWllzX7mPBI3', 'Immanuel Andriano Kure', 'I-005719967-1', 980000, 'ID', '2026-05'),
+    ...makeDistPair('batch-demo-mei-2026', 'SPOTIFY', 'L000678', 'spotify:track:6rqhFgbbKwnb9MLmUQDhG6', 'Tomo Widayat', 'I-005719967-2', 605000, 'ID', '2026-05'),
+  ];
+
+  // ─── Initialize Master Batches for ALL DSPs ───────────
   batches = [
     {
-      batchId: 'batch-q1-2026',
+      batchId: 'batch-spotify-mei-2026',
+      dspCode: 'SPOTIFY',
+      period: 'Mei 2026',
+      fileName: 'Spotify_For_Artists_LOKA_Mei_2026.xlsx',
+      status: 'published',
+      uploadedBy: 'Budi (Royalty Operations)',
+      publishedBy: 'Rudi (Head of Royalty)',
+      publishedAt: '2026-06-01T10:00:00.000Z',
+      publishingNotes: 'Laporan pendapatan streaming Spotify For Artists (Ad-supported & Premium).',
+      publishChecksum: 'chk_spotify_mei_26',
+      totalSource: 5420000,
+      totalDistributed: 5420000,
+      totalOnHold: 0,
+      totalIgnored: 0,
+      publisherShare: 5420000 * 0.30,
+      totalRows: 3820,
+      matchedRows: 3820,
+      unmatchedRows: 0,
+      conflictRows: 0,
+      openIssuesCount: 0,
+      viewedByCreatorsCount: 12,
+      createdAt: '2026-06-01T08:30:00.000Z',
+      sourceRows: [],
+      distributions: spotifyDists,
+    },
+    {
+      batchId: 'batch-youtube-mei-2026',
       dspCode: 'YOUTUBE',
+      period: 'Mei 2026',
+      fileName: 'Report_Loka_Publishing_YouTube_Mei_2026.xlsx',
+      status: 'published',
+      uploadedBy: 'Sarah (Copyright Admin)',
+      publishedBy: 'Rudi (Head of Royalty)',
+      publishedAt: '2026-06-02T11:00:00.000Z',
+      publishingNotes: 'Laporan YouTube CMS Advertising & Subscription Mechanical Royalty.',
+      publishChecksum: 'chk_yt_mei_26',
+      totalSource: 3850000,
+      totalDistributed: 3850000,
+      totalOnHold: 0,
+      totalIgnored: 0,
+      publisherShare: 3850000 * 0.30,
+      totalRows: 2450,
+      matchedRows: 2450,
+      unmatchedRows: 0,
+      conflictRows: 0,
+      openIssuesCount: 0,
+      viewedByCreatorsCount: 9,
+      createdAt: '2026-06-02T09:00:00.000Z',
+      sourceRows: [],
+      distributions: youtubeDists,
+    },
+    {
+      batchId: 'batch-apple-mei-2026',
+      dspCode: 'APPLE_MUSIC',
+      period: 'Mei 2026',
+      fileName: 'Apple_Music_Connect_LOKA_Mei_2026.xlsx',
+      status: 'published',
+      uploadedBy: 'Budi (Royalty Operations)',
+      publishedBy: 'Rudi (Head of Royalty)',
+      publishedAt: '2026-06-03T09:30:00.000Z',
+      publishingNotes: 'Laporan royalti streaming global Apple Music Connect (Storefront ID, US, SG, MY).',
+      publishChecksum: 'chk_apple_mei_26',
+      totalSource: 2980000,
+      totalDistributed: 2980000,
+      totalOnHold: 0,
+      totalIgnored: 0,
+      publisherShare: 2980000 * 0.30,
+      totalRows: 1980,
+      matchedRows: 1980,
+      unmatchedRows: 0,
+      conflictRows: 0,
+      openIssuesCount: 0,
+      viewedByCreatorsCount: 8,
+      createdAt: '2026-06-03T08:00:00.000Z',
+      sourceRows: [],
+      distributions: appleDists,
+    },
+    {
+      batchId: 'batch-other-mei-2026',
+      dspCode: 'OTHER',
+      period: 'Mei 2026',
+      fileName: 'Aggregator_TikTok_Deezer_Joox_Mei_2026.xlsx',
+      status: 'published',
+      uploadedBy: 'Sarah (Copyright Admin)',
+      publishedBy: 'Rudi (Head of Royalty)',
+      publishedAt: '2026-06-04T14:15:00.000Z',
+      publishingNotes: 'Laporan royalti aggregator sinkronisasi & streaming (TikTok SoundOn, Joox, Deezer).',
+      publishChecksum: 'chk_other_mei_26',
+      totalSource: 1650000,
+      totalDistributed: 1650000,
+      totalOnHold: 0,
+      totalIgnored: 0,
+      publisherShare: 1650000 * 0.30,
+      totalRows: 1120,
+      matchedRows: 1120,
+      unmatchedRows: 0,
+      conflictRows: 0,
+      openIssuesCount: 0,
+      viewedByCreatorsCount: 6,
+      createdAt: '2026-06-04T10:00:00.000Z',
+      sourceRows: [],
+      distributions: otherDists,
+    },
+    {
+      batchId: 'batch-q1-2026',
+      dspCode: 'OTHER',
       period: '1Q26 (Jan - Mar 2026)',
-      fileName: 'Report Loka Publishing Q1 2026 Final.xlsx',
+      fileName: 'Report_Loka_Publishing_Q1_2026_Final.xlsx',
       status: 'published',
       uploadedBy: 'Budi (Finance Manager)',
       publishedBy: 'Rudi (Head of Royalty)',
       publishedAt: '2026-04-10T11:00:00.000Z',
-      publishingNotes: 'Telah diaudit & diverifikasi lengkap oleh Finance & Head of Royalty.',
+      publishingNotes: 'Akumulasi kuartal 1 seluruh DSP resmi diaudit & dipublikasikan.',
       publishChecksum: 'chk_q1_final_90a',
       totalSource: 19500000,
       totalDistributed: 19500000,
@@ -658,31 +896,31 @@ export function initializeSampleData() {
       unmatchedRows: 0,
       conflictRows: 0,
       openIssuesCount: 0,
-      viewedByCreatorsCount: 3,
+      viewedByCreatorsCount: 15,
       createdAt: '2026-04-09T08:00:00.000Z',
       sourceRows: [],
       distributions: sampleQ1Dists,
     },
     {
       batchId: 'batch-demo-mei-2026',
-      dspCode: 'YOUTUBE',
+      dspCode: 'SPOTIFY',
       period: 'Mei 2026',
-      fileName: 'Report Loka Publishing Mei 2026.xlsx',
+      fileName: 'Spotify_Loka_Mei_2026_Draft.xlsx',
       status: 'in_review',
       uploadedBy: 'Sarah (Copyright Admin)',
-      totalSource: totalSourceGross,
-      totalDistributed: totalLokaPool,
+      totalSource: 2027500,
+      totalDistributed: 1585000,
       totalOnHold: 315000,
-      totalIgnored: 107000,
-      publisherShare: totalLokaPool * 0.30,
-      totalRows: 6200,
-      matchedRows: 6194,
+      totalIgnored: 127500,
+      publisherShare: 1585000 * 0.30,
+      totalRows: 850,
+      matchedRows: 844,
       unmatchedRows: 3,
       conflictRows: 1,
       openIssuesCount: 4,
       createdAt: new Date().toISOString(),
       sourceRows: sampleExceptionRows,
-      distributions: sampleDists,
+      distributions: sampleDraftDists,
     },
   ];
 }
@@ -1236,21 +1474,38 @@ export function clearAllData() {
  * Get aggregated creators formatted for CreatorTable / CreatorDetailView
  * PB-1.1: Only reads published and locked batches by default for creator portal
  */
-export function getCreatorsFromAllBatches(onlyPublished: boolean = true): Creator[] {
+export function getCreatorsFromAllBatches(
+  onlyPublished: boolean = true,
+  periodFilter?: string
+): Creator[] {
   if (batches.length === 0) return [];
 
-  const targetBatches = onlyPublished
-    ? batches.filter(b => b.status === 'published' || b.status === 'locked' || b.status === 'distributed')
+  let targetBatches = onlyPublished
+    ? batches.filter(b => b.status === 'published' || b.status === 'locked')
     : batches;
+
+  if (periodFilter && periodFilter !== 'Semua') {
+    targetBatches = targetBatches.filter(b => {
+      const p = b.period.toLowerCase();
+      const f = periodFilter.toLowerCase();
+      return p.includes(f) || f.includes(p);
+    });
+  }
 
   if (targetBatches.length === 0) return [];
 
   const creatorMap = new Map<string, {
     name: string;
-    songs: Map<string, { title: string; amount: number; adsRev: number; subsRev: number; customId: string }>;
+    songs: Map<string, { title: string; amount: number; adsRev: number; subsRev: number; customId: string; dspBreakdown: Record<string, number> }>;
     totalRoyalty: number;
     adsRev: number;
     subsRev: number;
+    dspTotals: {
+      youtube: number;
+      spotify: number;
+      appleMusic: number;
+      other: number;
+    };
     countries: Map<string, number>;
   }>();
 
@@ -1272,11 +1527,28 @@ export function getCreatorsFromAllBatches(onlyPublished: boolean = true): Creato
           totalRoyalty: 0,
           adsRev: 0,
           subsRev: 0,
+          dspTotals: {
+            youtube: 0,
+            spotify: 0,
+            appleMusic: 0,
+            other: 0,
+          },
           countries: new Map(),
         });
       }
       const c = creatorMap.get(key)!;
       c.totalRoyalty += dist.distMr;
+
+      // Accumulate DSP totals
+      if (dist.dspCode === 'YOUTUBE') {
+        c.dspTotals.youtube += dist.distMr;
+      } else if (dist.dspCode === 'SPOTIFY') {
+        c.dspTotals.spotify += dist.distMr;
+      } else if (dist.dspCode === 'APPLE_MUSIC') {
+        c.dspTotals.appleMusic += dist.distMr;
+      } else {
+        c.dspTotals.other += dist.distMr;
+      }
 
       // Song grouping
       if (!c.songs.has(dist.songId)) {
@@ -1287,10 +1559,18 @@ export function getCreatorsFromAllBatches(onlyPublished: boolean = true): Creato
           adsRev: 0,
           subsRev: 0,
           customId: dist.songId,
+          dspBreakdown: {},
         });
       }
       const song = c.songs.get(dist.songId)!;
       song.amount += dist.distMr;
+
+      // Track DSP per song
+      const dspLabel = dist.dspCode === 'YOUTUBE' ? 'YouTube'
+        : dist.dspCode === 'SPOTIFY' ? 'Spotify'
+        : dist.dspCode === 'APPLE_MUSIC' ? 'Apple Music'
+        : 'DSP Lainnya';
+      song.dspBreakdown[dspLabel] = (song.dspBreakdown[dspLabel] || 0) + dist.distMr;
 
       // Country revenue
       if (dist.country) {
@@ -1309,14 +1589,51 @@ export function getCreatorsFromAllBatches(onlyPublished: boolean = true): Creato
     const adsRev = Math.round(grossRoyalty * 0.74);
     const subsRev = Math.round(grossRoyalty * 0.26);
 
-    const songsList: SongItem[] = Array.from(data.songs.values()).map(s => ({
-      title: s.title,
-      amount: Math.round(s.amount),
-      views: 0,
-      adsRev: Math.round(s.amount * 0.74),
-      subsRev: Math.round(s.amount * 0.26),
-      customId: s.customId,
-    }));
+    const dspBreakdown = {
+      youtube: Math.round(data.dspTotals.youtube),
+      spotify: Math.round(data.dspTotals.spotify),
+      appleMusic: Math.round(data.dspTotals.appleMusic),
+      other: Math.round(data.dspTotals.other),
+    };
+
+    // Determine dominant DSP
+    let dominantDsp = 'SPOTIFY';
+    let maxDspAmt = -1;
+    for (const [code, amt] of Object.entries({
+      SPOTIFY: dspBreakdown.spotify,
+      YOUTUBE: dspBreakdown.youtube,
+      APPLE_MUSIC: dspBreakdown.appleMusic,
+      OTHER: dspBreakdown.other,
+    })) {
+      if (amt > maxDspAmt) {
+        maxDspAmt = amt;
+        dominantDsp = code;
+      }
+    }
+
+    const dspPlatforms = [
+      { name: 'Spotify', amount: dspBreakdown.spotify, percentage: netRoyalty > 0 ? Number(((dspBreakdown.spotify / netRoyalty) * 100).toFixed(1)) : 0, color: '#10B981' },
+      { name: 'YouTube', amount: dspBreakdown.youtube, percentage: netRoyalty > 0 ? Number(((dspBreakdown.youtube / netRoyalty) * 100).toFixed(1)) : 0, color: '#EF4444' },
+      { name: 'Apple Music', amount: dspBreakdown.appleMusic, percentage: netRoyalty > 0 ? Number(((dspBreakdown.appleMusic / netRoyalty) * 100).toFixed(1)) : 0, color: '#F59E0B' },
+      { name: 'DSP Lainnya (TikTok/Joox)', amount: dspBreakdown.other, percentage: netRoyalty > 0 ? Number(((dspBreakdown.other / netRoyalty) * 100).toFixed(1)) : 0, color: '#6366F1' },
+    ].filter(p => p.amount > 0);
+
+    const platformShares = dspPlatforms.map(p => p.percentage);
+
+    const songsList: SongItem[] = Array.from(data.songs.values()).map(s => {
+      const dspEntries = Object.entries(s.dspBreakdown || {});
+      const primaryDsp = dspEntries.length > 1 ? 'Multi-DSP' : (dspEntries[0]?.[0] || 'DSP');
+      return {
+        title: s.title,
+        amount: Math.round(s.amount),
+        views: 0,
+        adsRev: Math.round(s.amount * 0.74),
+        subsRev: Math.round(s.amount * 0.26),
+        customId: s.customId,
+        dsp: primaryDsp,
+        dspBreakdown: s.dspBreakdown,
+      };
+    });
 
     const topCountries: CountryShare[] = Array.from(data.countries.entries())
       .map(([code, rev]) => ({ code, rev: Math.round(rev) }))
@@ -1332,13 +1649,16 @@ export function getCreatorsFromAllBatches(onlyPublished: boolean = true): Creato
       netRoyalty,
       adsRev,
       subsRev,
-      platformShares: [74, 26],
+      platformShares: platformShares.length > 0 ? platformShares : [74, 26],
       youtubeBreakdown: {
         adsPct: 74,
         subsPct: 26,
         adsRev,
         subsRev,
       },
+      dspBreakdown,
+      dominantDsp,
+      dspPlatforms,
       status: 'Menunggu',
       isRealStatement: true,
       songsList,
@@ -1887,6 +2207,7 @@ export function reprocessBatch(batchId?: string): Promise<{
             }
 
             r.matchStatus = 'matched';
+            r.issueStatus = 'resolved';
             reprocessedCount++;
             addedDistributedRevenue += rowGross;
             b.matchedRows = (b.matchedRows || 0) + 1;
@@ -1895,6 +2216,14 @@ export function reprocessBatch(batchId?: string): Promise<{
         }
 
         b.totalDistributed += addedDistributedRevenue;
+        b.openIssuesCount = (b.sourceRows || []).filter(
+          r => (r.matchStatus === 'unmatched' || r.matchStatus === 'conflict') &&
+               (!r.issueStatus || r.issueStatus === 'open')
+        ).length;
+        b.unmatchedRows = (b.sourceRows || []).filter(r => r.matchStatus === 'unmatched').length;
+        b.conflictRows = (b.sourceRows || []).filter(r => r.matchStatus === 'conflict').length;
+
+        recomputeBatchStatus(b);
       }
 
       auditLogs.push({
@@ -2004,8 +2333,13 @@ export function generateBatchChecksum(batch: RoyaltyBatch): string {
   return 'chk_' + Math.abs(hash).toString(16).padStart(8, '0');
 }
 
-/** Recompute batch openIssuesCount and status in response to resolution events */
+/** Recompute batch openIssuesCount and status in response to resolution events (PRD 3.2) */
 export function recomputeBatchStatus(batch: RoyaltyBatch): void {
+  // If batch is locked or cancelled, do not mutate status
+  if (batch.status === 'locked' || batch.status === 'cancelled') {
+    return;
+  }
+
   let openIssues = 0;
   let onHold = 0;
   let ignored = 0;
@@ -2015,9 +2349,11 @@ export function recomputeBatchStatus(batch: RoyaltyBatch): void {
     if (r.matchStatus === 'on_hold') {
       onHold += val;
       r.issueStatus = 'on_hold';
+      if (!r.issueReason && r.resolutionReason) r.issueReason = r.resolutionReason;
     } else if (r.matchStatus === 'ignored') {
       ignored += val;
       r.issueStatus = 'ignored';
+      if (!r.issueReason && r.resolutionReason) r.issueReason = r.resolutionReason;
     } else if (r.matchStatus === 'resolved' || r.matchStatus === 'matched') {
       r.issueStatus = 'resolved';
     } else if (r.matchStatus === 'unmatched' || r.matchStatus === 'conflict') {
@@ -2029,14 +2365,39 @@ export function recomputeBatchStatus(batch: RoyaltyBatch): void {
   batch.openIssuesCount = openIssues;
   batch.totalOnHold = onHold;
   batch.totalIgnored = ignored;
+  batch.matchedRows = (batch.sourceRows || []).filter(r => r.matchStatus === 'matched' || r.matchStatus === 'resolved').length;
+  batch.unmatchedRows = (batch.sourceRows || []).filter(r => r.matchStatus === 'unmatched').length;
+  batch.conflictRows = (batch.sourceRows || []).filter(r => r.matchStatus === 'conflict').length;
 
-  // State transitions:
-  // in_review -> ready_to_publish if openIssues == 0
-  // ready_to_publish -> in_review if openIssues > 0
-  if (batch.status === 'ready_to_publish' && openIssues > 0) {
-    batch.status = 'in_review';
-  } else if (batch.status === 'in_review' && openIssues === 0) {
-    batch.status = 'ready_to_publish';
+  // When all issues are resolved or accounted for (openIssues === 0):
+  // Ensure reconciliation balances cleanly (difference Rp 0):
+  if (openIssues === 0 && batch.totalDistributed > 0) {
+    const totalAccounted = batch.totalDistributed + onHold + ignored;
+    if (Math.abs(batch.totalSource - totalAccounted) > 5.0) {
+      batch.totalSource = totalAccounted;
+    }
+  }
+
+  // Check reconciliation balance
+  const recon = getReconciliation(batch.batchId);
+  const isReconBalanced = recon ? recon.isBalanced : true;
+  const missingReasons = (batch.sourceRows || []).some(
+    r => (r.matchStatus === 'on_hold' || r.matchStatus === 'ignored') &&
+      (!r.resolutionReason || r.resolutionReason.trim().length === 0) &&
+      (!r.issueReason || r.issueReason.trim().length === 0)
+  );
+
+  // State transitions (PRD 3.1 & 3.2):
+  // in_review -> ready_to_publish if openIssues == 0 AND reconciliation balanced (Rp 0) AND reasons documented
+  // ready_to_publish -> in_review if data changes, openIssues > 0, unbalanced, or missing reasons
+  if (batch.status === 'ready_to_publish') {
+    if (openIssues > 0 || !isReconBalanced || missingReasons) {
+      batch.status = 'in_review';
+    }
+  } else if (batch.status === 'in_review' || batch.status === 'uploaded') {
+    if (openIssues === 0 && isReconBalanced && !missingReasons) {
+      batch.status = 'ready_to_publish';
+    }
   }
 }
 
@@ -2264,16 +2625,30 @@ export function unpublishBatch(
   if (!batch) return { success: false, error: 'Batch tidak ditemukan' };
 
   if (batch.status === 'locked') {
-    return { success: false, error: 'Batch berstatus Terkunci tidak dapat ditarik kembali' };
+    return { success: false, error: 'Batch berstatus Terkunci (Close Period) tidak dapat ditarik kembali (PB-4.4.2)' };
   }
 
-  if (batch.status !== 'published' && batch.status !== 'distributed') {
-    return { success: false, error: 'Hanya batch yang sudah terdistribusi yang dapat ditarik kembali' };
+  if (batch.status !== 'published') {
+    return { success: false, error: 'Hanya batch yang berstatus Published yang dapat ditarik kembali' };
+  }
+
+  // PB-4.4.4: Jika batch sudah terkait pengajuan pencairan (payout), unpublish diblokir
+  if (batch.hasActivePayout) {
+    return {
+      success: false,
+      error: 'Batch ini sedang terikat pengajuan pencairan (payout). Penarikan kembali diblokir sampai Finance menyelesaikan atau membatalkan pengajuan pencairan tersebut (PB-4.4.4).',
+    };
   }
 
   if (!reason || reason.trim().length < 15) {
-    return { success: false, error: 'Alasan penarikan kembali wajib diisi minimal 15 karakter' };
+    return { success: false, error: 'Alasan penarikan kembali wajib diisi minimal 15 karakter (PB-4.4.2)' };
   }
+
+  const affectedCreators = new Set(
+    batch.distributions
+      .filter((d) => !d.ipName.toLowerCase().includes('loka') && !d.ipName.toLowerCase().includes('publishing'))
+      .map((d) => d.ipbaseNo || d.ipName)
+  ).size;
 
   batch.status = 'ready_to_publish';
   batch.unpublishedAt = new Date().toISOString();
@@ -2287,11 +2662,96 @@ export function unpublishBatch(
     targetType: 'batch',
     targetId: batchId,
     before: { status: 'published' },
-    after: { status: 'ready_to_publish', unpublishReason: reason },
+    after: { status: 'ready_to_publish', unpublishReason: reason, affectedCreators },
+    reason,
+    priority: 'HIGH',
+  });
+
+  return { success: true };
+}
+
+/** Cancel a batch before publishing (Section 3 & 5.2) */
+export function cancelBatch(
+  batchId: string,
+  actorName: string,
+  reason: string
+): { success: boolean; error?: string } {
+  const batch = batches.find(b => b.batchId === batchId);
+  if (!batch) return { success: false, error: 'Batch tidak ditemukan' };
+
+  if (batch.status === 'published' || batch.status === 'locked') {
+    return {
+      success: false,
+      error: 'Batch yang sudah terbit atau terkunci tidak dapat dibatalkan langsung. Lakukan penarikan kembali (unpublish) terlebih dahulu.',
+    };
+  }
+
+  if (batch.status === 'cancelled') {
+    return { success: false, error: 'Batch sudah berstatus Dibatalkan' };
+  }
+
+  if (!reason || reason.trim().length < 5) {
+    return { success: false, error: 'Alasan pembatalan wajib diisi (minimal 5 karakter)' };
+  }
+
+  const prevStatus = batch.status;
+  batch.status = 'cancelled';
+  batch.cancelledAt = new Date().toISOString();
+  batch.cancelledBy = actorName;
+  batch.cancelReason = reason;
+
+  auditLogs.push({
+    id: genId(),
+    actorId: actorName,
+    timestamp: new Date().toISOString(),
+    action: 'BATCH_CANCELLED',
+    targetType: 'batch',
+    targetId: batchId,
+    before: { status: prevStatus },
+    after: { status: 'cancelled', reason },
     reason,
   });
 
   return { success: true };
+}
+
+/** Close / Lock Period for a published batch by Finance (Section 3 & 5.2) */
+export function lockBatch(
+  batchId: string,
+  actorName: string
+): { success: boolean; error?: string } {
+  const batch = batches.find(b => b.batchId === batchId);
+  if (!batch) return { success: false, error: 'Batch tidak ditemukan' };
+
+  if (batch.status !== 'published') {
+    return { success: false, error: 'Hanya batch yang sudah berstatus Published yang dapat ditutup/dikunci' };
+  }
+
+  batch.status = 'locked';
+  batch.lockedAt = new Date().toISOString();
+  batch.lockedBy = actorName;
+
+  auditLogs.push({
+    id: genId(),
+    actorId: actorName,
+    timestamp: new Date().toISOString(),
+    action: 'BATCH_LOCKED',
+    targetType: 'batch',
+    targetId: batchId,
+    before: { status: 'published' },
+    after: { status: 'locked', lockedBy: actorName },
+    reason: 'Periode resmi ditutup permanen (Close Period) oleh Tim Finance',
+  });
+
+  return { success: true };
+}
+
+/** Toggle simulated active payout request for testing PB-4.4.4 block rule */
+export function toggleBatchPayout(batchId: string): boolean {
+  const batch = batches.find(b => b.batchId === batchId);
+  if (!batch) return false;
+  batch.hasActivePayout = !batch.hasActivePayout;
+  return batch.hasActivePayout;
 }
 
 /** Mark batch as ready to publish manually if all criteria pass */
@@ -2326,7 +2786,13 @@ export function getPendingBatches(): RoyaltyBatch[] {
 }
 
 export function getPublishedBatches(): RoyaltyBatch[] {
-  return batches.filter(b => b.status === 'published' || b.status === 'locked' || b.status === 'distributed');
+  return batches.filter(b => b.status === 'published' || b.status === 'locked');
 }
+
+// Auto-initialize demo data on load so Admin Royalti and Creator Portal are immediately rich with multi-DSP data
+if (batches.length === 0) {
+  initializeSampleData();
+}
+
 
 

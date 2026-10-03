@@ -8,7 +8,9 @@ import {
   getCreatorsFromAllBatches,
   getPendingBatches,
   getAllBatches,
+  RoyaltyBatch,
 } from '../../data/distributionEngine';
+import { PublishModal } from './PublishModal';
 import {
   getCreatorPortalData,
   AVAILABLE_PERIODS,
@@ -26,12 +28,15 @@ export const CreatorPortal: React.FC<CreatorPortalProps> = ({
   initialCreatorId,
   onBackToAdmin,
 }) => {
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [modalPublishBatch, setModalPublishBatch] = useState<RoyaltyBatch | null>(null);
+
   // PB-1.1: Only reads published and locked batches
-  const allCreators = useMemo(() => getCreatorsFromAllBatches(true), []);
-  const pendingBatches = useMemo(() => getPendingBatches(), []);
+  const allCreators = useMemo(() => getCreatorsFromAllBatches(true), [refreshTrigger]);
+  const pendingBatches = useMemo(() => getPendingBatches(), [refreshTrigger]);
   const publishedBatches = useMemo(() => {
-    return getAllBatches().filter((b) => b.status === 'published' || b.status === 'distributed');
-  }, []);
+    return getAllBatches().filter((b) => b.status === 'published' || b.status === 'locked');
+  }, [refreshTrigger]);
 
   // Selected creator state
   const [selectedCreatorId, setSelectedCreatorId] = useState<number>(() => {
@@ -150,15 +155,39 @@ export const CreatorPortal: React.FC<CreatorPortalProps> = ({
           )}
         </div>
 
+        {/* PB-1.2: Verification Banner when there are pending batches awaiting publication */}
+        {pendingBatches.length > 0 && (
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50/60 border border-amber-200 rounded-[12px] p-4 flex items-start gap-3.5 shadow-2xs animate-in fade-in">
+            <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 text-lg">
+              ℹ️
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <span className="text-[13px] font-bold text-amber-950">
+                  Laporan royalti periode [{pendingBatches[0].period}] sedang dalam tahap verifikasi & rekonsiliasi oleh Tim LOKA Publishing. Saldo akan diperbarui setelah proses verifikasi selesai.
+                </span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-200/70 text-amber-900 tracking-wide">
+                  PB-1.2
+                </span>
+              </div>
+              <p className="text-[12px] text-amber-800/90 mt-1 leading-relaxed">
+                Laporan distribusi DSP ({pendingBatches[0].fileName}) masih dalam status peninjauan internal. Seluruh saldo royalti dan slip statement baru akan tampil di portal setelah batch dinyatakan resmi terbit (Published).
+              </p>
+            </div>
+          </div>
+        )}
+
         <Card className="p-12 text-center">
           <div className="w-16 h-16 rounded-full bg-[#EFF6FF] flex items-center justify-center text-[#2563EB] mx-auto mb-4">
             <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
           </div>
-          <Typography variant="heading-2">Belum Ada Data Distribusi Pencipta</Typography>
+          <Typography variant="heading-2">Belum Ada Data Distribusi Terpublikasi</Typography>
           <Typography variant="body" color="secondary" className="max-w-md mx-auto mt-2">
-            Belum ada data distribusi. Unggah laporan DSP melalui dashboard Admin.
+            {pendingBatches.length > 0
+              ? 'Laporan royalti saat ini sedang diverifikasi internal oleh Tim LOKA Publishing. Silakan periksa kembali setelah status batch diterbitkan resmi.'
+              : 'Belum ada data distribusi. Unggah laporan DSP melalui dashboard Admin.'}
           </Typography>
           {onBackToAdmin && (
             <div className="mt-6">
@@ -252,23 +281,54 @@ export const CreatorPortal: React.FC<CreatorPortalProps> = ({
 
       {/* ── PB-1.2: Informative Verification Banner ─────────────────── */}
       {pendingForSelectedPeriod && (
-        <div className="bg-gradient-to-r from-amber-50 to-orange-50/60 border border-amber-200/90 rounded-[12px] p-4 flex items-start gap-3.5 shadow-2xs animate-in fade-in">
-          <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 text-lg">
-            ℹ️
-          </div>
-          <div className="flex-1">
-            <div className="flex items-center gap-2">
-              <span className="text-[13px] font-bold text-amber-950">
-                Laporan Royalti Periode {pendingForSelectedPeriod.period} Sedang dalam Proses Verifikasi Tim LOKA
-              </span>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-200/70 text-amber-900 tracking-wide">
-                PB-1.2
-              </span>
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50/60 border border-amber-200/90 rounded-[12px] p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3.5 shadow-2xs animate-in fade-in">
+          <div className="flex items-start gap-3.5 flex-1">
+            <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 text-lg">
+              ℹ️
             </div>
-            <p className="text-[12px] text-amber-800/90 mt-1 leading-relaxed">
-              Laporan distribusi royalti DSP ({pendingForSelectedPeriod.fileName}) saat ini sedang melewati tahap rekonsiliasi dan verifikasi hak cipta oleh Tim Royalty & Finance LOKA Publishing. Saldo resmi dan rincian lagu akan diperbarui secara otomatis setelah proses distribusi selesai diotorisasi oleh tim.
-            </p>
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <span className="text-[13px] font-bold text-amber-950">
+                  Laporan royalti periode [{pendingForSelectedPeriod.period}] sedang dalam tahap verifikasi & rekonsiliasi oleh Tim LOKA Publishing. Saldo akan diperbarui setelah proses verifikasi selesai.
+                </span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-200/70 text-amber-900 tracking-wide">
+                  PB-1.2
+                </span>
+              </div>
+              <p className="text-[12px] text-amber-800/90 mt-1 leading-relaxed">
+                Batch ({pendingForSelectedPeriod.fileName}) saat ini sedang dalam peninjauan internal tim Hak Cipta & Finance LOKA. Saldo resmi dan rincian slip lagu pada periode ini akan diperbarui segera setelah proses otorisasi publikasi selesai.
+              </p>
+            </div>
           </div>
+
+          {/* Action button if ready to publish */}
+          {pendingForSelectedPeriod.openIssuesCount === 0 && (
+            <div className="shrink-0 w-full md:w-auto">
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setModalPublishBatch(pendingForSelectedPeriod)}
+                className="w-full md:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold shadow-md shadow-blue-500/20 whitespace-nowrap cursor-pointer"
+                iconLeft={<span>🚀</span>}
+              >
+                Distribusikan Resmi Sekarang
+              </Button>
+            </div>
+          )}
+
+          {/* Action button if still in review with issues */}
+          {(pendingForSelectedPeriod.openIssuesCount ?? 0) > 0 && onBackToAdmin && (
+            <div className="shrink-0 w-full md:w-auto">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={onBackToAdmin}
+                className="w-full md:w-auto bg-white text-amber-900 border-amber-300 hover:bg-amber-100 font-bold whitespace-nowrap text-xs cursor-pointer"
+              >
+                Periksa {pendingForSelectedPeriod.openIssuesCount} Isu di Resolver →
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
@@ -589,10 +649,11 @@ export const CreatorPortal: React.FC<CreatorPortalProps> = ({
                 className="h-10 px-3 rounded-[8px] border border-[#E5E7EB] bg-[#FAFAFA] text-[13px] text-[#111827] focus:bg-white focus:outline-none focus:border-[#2563EB] transition-all cursor-pointer font-medium"
               >
                 <option value="">Semua DSP</option>
-                <option value="YouTube">YouTube</option>
                 <option value="Spotify">Spotify</option>
-                <option value="Apple">Apple Music / Musixmatch</option>
-                <option value="LyricFind">LyricFind</option>
+                <option value="YouTube">YouTube</option>
+                <option value="Apple">Apple Music</option>
+                <option value="TikTok">TikTok / ByteDance</option>
+                <option value="Lainnya">DSP Lainnya (Joox/Deezer)</option>
               </select>
             </div>
 
@@ -857,6 +918,19 @@ export const CreatorPortal: React.FC<CreatorPortalProps> = ({
             </div>
           </Card>
         </div>
+      )}
+
+      {/* ── Publish Modal inside CreatorPortal ── */}
+      {modalPublishBatch && (
+        <PublishModal
+          isOpen={!!modalPublishBatch}
+          batch={modalPublishBatch}
+          onClose={() => setModalPublishBatch(null)}
+          onSuccess={() => {
+            setModalPublishBatch(null);
+            setRefreshTrigger((v) => v + 1);
+          }}
+        />
       )}
     </div>
   );

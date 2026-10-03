@@ -32,12 +32,15 @@ export const UnpublishModal: React.FC<UnpublishModalProps> = ({
 
   const affectedCreators = new Set(
     batch.distributions
-      .filter((d) => !d.ipName.toLowerCase().includes('loka'))
+      .filter((d) => !d.ipName.toLowerCase().includes('loka') && !d.ipName.toLowerCase().includes('publishing'))
       .map((d) => d.ipbaseNo || d.ipName)
   ).size;
 
+  const viewedCount = batch.viewedByCreatorsCount || 0;
+  const hasActivePayout = batch.hasActivePayout === true;
+
   const isReasonValid = reason.trim().length >= 15;
-  const canSubmit = isReasonValid && !isSubmitting;
+  const canSubmit = isReasonValid && !isSubmitting && !hasActivePayout;
 
   const handleConfirmUnpublish = () => {
     if (!canSubmit) return;
@@ -69,16 +72,21 @@ export const UnpublishModal: React.FC<UnpublishModalProps> = ({
             </svg>
           </div>
           <div className="flex-1">
-            <h3 className="text-[16px] font-bold text-slate-900">
-              Tarik Kembali Distribusi (Unpublish)
-            </h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-[16px] font-bold text-slate-900">
+                Tarik Kembali Distribusi (Unpublish)
+              </h3>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 tracking-wide uppercase">
+                PB-4.4
+              </span>
+            </div>
             <p className="text-[12px] text-slate-500 mt-0.5">
               Batch: <span className="font-semibold text-slate-700">{batch.fileName}</span> ({batch.period})
             </p>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors"
+            className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
@@ -89,8 +97,34 @@ export const UnpublishModal: React.FC<UnpublishModalProps> = ({
         {/* Content */}
         <div className="p-6 space-y-4 text-slate-700 text-sm">
           {errorMessage && (
-            <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 text-[12px]">
-              {errorMessage}
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 text-[12px] flex items-center gap-2">
+              <span>⚠</span>
+              <span>{errorMessage}</span>
+            </div>
+          )}
+
+          {/* PB-4.4.4: Active Payout Block Banner */}
+          {hasActivePayout && (
+            <div className="p-3.5 bg-rose-50 border-2 border-rose-300 rounded-xl space-y-1 text-[12px] text-rose-900 animate-pulse">
+              <div className="font-bold flex items-center gap-1.5 text-rose-800">
+                <span>🚫</span> Penarikan Kembali Diblokir (PB-4.4.4)
+              </div>
+              <p className="text-rose-700 leading-relaxed">
+                Batch ini sedang terikat <strong>pengajuan pencairan dana royalti (payout)</strong>. Penarikan kembali diblokir oleh sistem demi kepatuhan finansial sampai Tim Finance menyelesaikan atau membatalkan pengajuan pencairan tersebut.
+              </p>
+            </div>
+          )}
+
+          {/* PB-4.4.4: Interaksi Pencipta Indicator */}
+          {viewedCount > 0 && (
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-[12px] text-blue-900 flex items-start gap-2.5">
+              <span className="text-base shrink-0">👥</span>
+              <div>
+                <span className="font-bold">Interaksi Pencipta Terdeteksi:</span>
+                <p className="text-blue-800 mt-0.5">
+                  Tercatat <strong>{viewedCount} pencipta</strong> telah melihat atau mengunduh slip royalti dari batch ini. Pencipta yang terdampak akan otomatis menerima notifikasi koreksi, dan slip lama akan ditandai <em>"Dibatalkan / Digantikan"</em> (PB-4.4.4).
+                </p>
+              </div>
             </div>
           )}
 
@@ -106,14 +140,14 @@ export const UnpublishModal: React.FC<UnpublishModalProps> = ({
                 Saldo sebanyak <strong>{affectedCreators} pencipta</strong> akan kembali ke saldo sebelum batch ini terbit.
               </li>
               <li>
-                Status batch akan kembali ke <strong>Siap Terbit (Ready to Publish)</strong>.
+                Status batch akan kembali ke <strong>Siap Terbit (Ready to Publish)</strong>. Jika ada perubahan data, batch otomatis kembali ke tahap peninjauan.
               </li>
             </ul>
           </div>
 
           <div>
             <label className="block text-[12px] font-semibold text-slate-700 mb-1">
-              Otoritas Pembatalan:
+              Otoritas Pembatalan (Head of Royalty / Finance):
             </label>
             <select
               value={actor}
@@ -131,7 +165,7 @@ export const UnpublishModal: React.FC<UnpublishModalProps> = ({
                 Alasan Penarikan Kembali <span className="text-rose-500">*</span>
               </label>
               <span className={`text-[11px] ${reason.trim().length >= 15 ? 'text-emerald-600 font-semibold' : 'text-slate-400'}`}>
-                {reason.trim().length}/15 karakter minimum
+                {reason.trim().length}/15 karakter minimum (PB-4.4.2)
               </span>
             </div>
             <textarea

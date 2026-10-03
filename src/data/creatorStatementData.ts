@@ -7,6 +7,8 @@
  */
 
 import { Creator, SongItem } from './royaltyData';
+import { getAllBatches, getCreatorsFromAllBatches } from './distributionEngine';
+import realData from './realRoyaltyData.json';
 
 export interface PlatformItem {
   name: string;
@@ -270,7 +272,7 @@ export const RAW_1Q26_DATA = {
 };
 
 export const AVAILABLE_PERIODS = [
-  { id: 'Mei 2026', label: 'Mei 2026 (YouTube Mechanical)' },
+  { id: 'Mei 2026', label: 'Mei 2026 (Semua DSP: Spotify, YouTube, Apple, TikTok)' },
   { id: '1Q26', label: '1Q26 (Jan - Mar 2026 · Multi-DSP)' },
   { id: 'Semua', label: 'Semua Periode (Akumulasi)' },
 ];
@@ -283,74 +285,133 @@ const PLATFORM_COLOR_MAP: Record<string, string> = {
   'Spotify': '#10B981',
   'Musixmatch/Apple': '#F59E0B',
   'Apple Music': '#F59E0B',
+  'TikTok': '#6366F1',
+  'DSP Lainnya (TikTok/Joox)': '#6366F1',
+  'DSP Lainnya': '#6366F1',
   'LyricFind': '#8B5CF6',
   'Smule': '#EC4899',
   'Lainnya': '#6B7280',
 };
 
 export function getCreatorPortalData(
-  creator: Creator,
+  creator: Creator | string,
   period: string
 ): CreatorPortalData {
-  const isImmanuel = creator.name.toLowerCase().includes('immanuel');
+  const defaultCreator: Creator = {
+    id: 1,
+    name: typeof creator === 'string' ? creator : 'Pencipta',
+    songsCount: 0,
+    views: 0,
+    totalRoyalty: 0,
+    netRoyalty: 0,
+    adsRev: 0,
+    subsRev: 0,
+    platformShares: [74, 26],
+    youtubeBreakdown: {
+      adsPct: 74,
+      subsPct: 26,
+      adsRev: 0,
+      subsRev: 0,
+    },
+    status: 'Menunggu',
+    isRealStatement: false,
+    songsList: [],
+    topCountries: [],
+  };
 
-  if (period === '1Q26' && isImmanuel) {
-    const gross = RAW_1Q26_DATA.totalGross;
-    const net = Math.round(gross * 0.70); // 70% share for creator
-    const publisherShare = Math.round(gross * 0.30); // 30% publisher LOKA
+  const creatorObj: Creator = typeof creator === 'string'
+    ? defaultCreator
+    : (creator || defaultCreator);
 
-    const platformsList: PlatformItem[] = Object.entries(RAW_1Q26_DATA.platforms).map(
-      ([name, amount]) => ({
-        name,
-        amount: Math.round(amount * 0.70),
-        percentage: Number(((amount / gross) * 100).toFixed(1)),
-        color: PLATFORM_COLOR_MAP[name] || '#3B82F6',
-      })
-    ).sort((a, b) => b.amount - a.amount);
+  const creatorName = creatorObj.name || (typeof creator === 'string' ? creator : 'Pencipta');
+  const isImmanuel = creatorName.toLowerCase().includes('immanuel');
+  const batches = getAllBatches();
 
-    const songsList: SongDetailItem[] = RAW_1Q26_DATA.songs.map(([title, grossAmt], index) => {
-      const netAmt = Math.round(grossAmt * 0.70);
-      const pct = Number(((grossAmt / gross) * 100).toFixed(2));
-      const platformMap = RAW_1Q26_DATA.songPlatforms[title];
+  const isMeiPublished = batches.some(
+    (b) =>
+      (b.status === 'published' || b.status === 'locked') &&
+      (b.period.toLowerCase().includes('mei') || b.period.includes('2026-05'))
+  );
+
+  const is1QPublished = batches.some(
+    (b) =>
+      (b.status === 'published' || b.status === 'locked') &&
+      (b.period.toLowerCase().includes('1q') || b.period.toLowerCase().includes('q1'))
+  );
+
+  const getEmptyData = (periodLabel: string): CreatorPortalData => ({
+    creatorId: creatorObj.id,
+    creatorName: creatorObj.name,
+    period: periodLabel,
+    totalGross: 0,
+    totalNet: 0,
+    publisherShare: 0,
+    totalSongs: 0,
+    topPlatform: '-',
+    platforms: [],
+    topSongs: [],
+    songs: [],
+  });
+
+  const get1QData = (): CreatorPortalData => {
+    if (!is1QPublished) return getEmptyData('1Q26 (Jan - Mar 2026)');
+
+    if (isImmanuel) {
+      const gross = RAW_1Q26_DATA.totalGross;
+      const net = Math.round(gross * 0.70); // 70% share for creator
+      const publisherShare = Math.round(gross * 0.30); // 30% publisher LOKA
+
+      const platformsList: PlatformItem[] = Object.entries(RAW_1Q26_DATA.platforms).map(
+        ([name, amount]) => ({
+          name,
+          amount: Math.round(amount * 0.70),
+          percentage: Number(((amount / gross) * 100).toFixed(1)),
+          color: PLATFORM_COLOR_MAP[name] || '#3B82F6',
+        })
+      ).sort((a, b) => b.amount - a.amount);
+
+      const songsList: SongDetailItem[] = RAW_1Q26_DATA.songs.map(([title, grossAmt], index) => {
+        const netAmt = Math.round(grossAmt * 0.70);
+        const pct = Number(((grossAmt / gross) * 100).toFixed(2));
+        const platformMap = RAW_1Q26_DATA.songPlatforms[title];
+
+        return {
+          id: `1q26-${index + 1}`,
+          title,
+          customId: `SW-1Q26-${String(index + 1).padStart(3, '0')}`,
+          grossAmount: Math.round(grossAmt),
+          netAmount: netAmt,
+          contributionPct: pct,
+          dsp: platformMap ? Object.keys(platformMap)[0] : 'Multi-DSP',
+          platformBreakdown: platformMap,
+        };
+      });
+
+      const topSongs = songsList.slice(0, 6).map((s) => ({
+        title: s.title,
+        amount: s.netAmount,
+        percentage: s.contributionPct,
+        customId: s.customId,
+      }));
 
       return {
-        id: `1q26-${index + 1}`,
-        title,
-        customId: `SW-1Q26-${String(index + 1).padStart(3, '0')}`,
-        grossAmount: Math.round(grossAmt),
-        netAmount: netAmt,
-        contributionPct: pct,
-        dsp: platformMap ? Object.keys(platformMap)[0] : 'Multi-DSP',
-        platformBreakdown: platformMap,
+        creatorId: creatorObj.id,
+        creatorName: creatorObj.name,
+        period: '1Q26 (Jan - Mar 2026)',
+        totalGross: Math.round(gross),
+        totalNet: net,
+        publisherShare,
+        totalSongs: songsList.length,
+        topPlatform: 'Apple Music / Musixmatch',
+        platforms: platformsList,
+        topSongs,
+        songs: songsList,
       };
-    });
+    }
 
-    const topSongs = songsList.slice(0, 6).map((s) => ({
-      title: s.title,
-      amount: s.netAmount,
-      percentage: s.contributionPct,
-      customId: s.customId,
-    }));
-
-    return {
-      creatorId: creator.id,
-      creatorName: creator.name,
-      period: '1Q26 (Jan - Mar 2026)',
-      totalGross: Math.round(gross),
-      totalNet: net,
-      publisherShare,
-      totalSongs: songsList.length,
-      topPlatform: 'Apple Music / Musixmatch',
-      platforms: platformsList,
-      topSongs,
-      songs: songsList,
-    };
-  }
-
-  if (period === '1Q26' && !isImmanuel) {
     // For other creators in 1Q26, scale with typical quarterly volume
     const quarterlyMultiplier = 2.8;
-    const gross = Math.round(creator.totalRoyalty * quarterlyMultiplier);
+    const gross = Math.round(creatorObj.totalRoyalty * quarterlyMultiplier);
     const net = Math.round(gross * 0.70);
     const publisherShare = Math.round(gross * 0.30);
 
@@ -361,13 +422,13 @@ export function getCreatorPortalData(
       { name: 'LyricFind', amount: Math.round(net * 0.04), percentage: 4, color: '#8B5CF6' },
     ];
 
-    const songsList: SongDetailItem[] = creator.songsList.map((s, idx) => {
+    const songsList: SongDetailItem[] = (creatorObj.songsList || []).map((s, idx) => {
       const sGross = Math.round((s.amount / 0.70) * quarterlyMultiplier);
       const sNet = Math.round(sGross * 0.70);
       const pct = gross > 0 ? Number(((sGross / gross) * 100).toFixed(1)) : 0;
 
       return {
-        id: `q-${creator.id}-${idx}`,
+        id: `q-${creatorObj.id}-${idx}`,
         title: s.title,
         customId: s.customId || `LOKA-Q-${idx + 1}`,
         grossAmount: sGross,
@@ -383,8 +444,8 @@ export function getCreatorPortalData(
     });
 
     return {
-      creatorId: creator.id,
-      creatorName: creator.name,
+      creatorId: creatorObj.id,
+      creatorName: creatorObj.name,
       period: '1Q26 (Jan - Mar 2026)',
       totalGross: gross,
       totalNet: net,
@@ -400,13 +461,131 @@ export function getCreatorPortalData(
       })),
       songs: songsList,
     };
+  };
+
+  const getMeiData = (): CreatorPortalData => {
+    if (!isMeiPublished) return getEmptyData('Mei 2026');
+
+    // Look up this creator in published Mei batches
+    const meiCreators = getCreatorsFromAllBatches(true, 'Mei');
+    const isStringInput = typeof creator === 'string';
+    const isNumericId = typeof creator === 'number' || (!isNaN(Number(creator)) && String(Number(creator)) === String(creator).trim());
+
+    const matchedMei = meiCreators.find((c) => {
+      if (isNumericId) {
+        return c.id === Number(creator);
+      }
+      if (isStringInput) {
+        return c.name.toLowerCase().trim() === String(creator).toLowerCase().trim();
+      }
+      return c.id === creatorObj.id || c.name.toLowerCase().trim() === creatorObj.name.toLowerCase().trim();
+    });
+
+    if (!matchedMei) {
+      return getEmptyData('Mei 2026');
+    }
+
+    let activeCreator = matchedMei;
+
+    const gross = activeCreator.totalRoyalty;
+    const net = activeCreator.netRoyalty;
+    const publisherShare = Math.round(gross * 0.30);
+
+    const platformShares = activeCreator.platformShares || [74, 26];
+    const adsAmount = Math.round(net * ((platformShares[0] || 74) / 100));
+    const subsAmount = Math.round(net * ((platformShares[1] || 26) / 100));
+
+    const platformsList: PlatformItem[] = (activeCreator.dspPlatforms && activeCreator.dspPlatforms.length > 0)
+      ? activeCreator.dspPlatforms
+      : [
+          {
+            name: 'YouTube Ads (Iklan)',
+            amount: adsAmount,
+            percentage: platformShares[0] || 74,
+            color: '#EF4444',
+          },
+          {
+            name: 'YouTube Subscription (Music)',
+            amount: subsAmount,
+            percentage: platformShares[1] || 26,
+            color: '#3B82F6',
+          },
+        ];
+
+    const songsList: SongDetailItem[] = (activeCreator.songsList || []).map((s, idx) => {
+      const sGross = s.amount > 0 ? Math.round(s.amount / 0.70) : 0;
+      const sNet = s.amount;
+      const pct = net > 0 ? Number(((sNet / net) * 100).toFixed(1)) : 0;
+
+      const breakdown = s.dspBreakdown && Object.keys(s.dspBreakdown).length > 0
+        ? s.dspBreakdown
+        : {
+            'YouTube Ads': Math.round(sNet * 0.74),
+            'YouTube Subscription': Math.round(sNet * 0.26),
+          };
+
+      return {
+        id: `mei-${activeCreator.id}-${idx}`,
+        title: s.title,
+        customId: s.customId || `LOKA-MEI-${idx + 1}`,
+        grossAmount: sGross,
+        netAmount: sNet,
+        contributionPct: pct,
+        dsp: s.dsp || 'Multi-DSP',
+        platformBreakdown: breakdown,
+      };
+    });
+
+    const topSongs = [...songsList]
+      .sort((a, b) => b.netAmount - a.netAmount)
+      .slice(0, 6)
+      .map((s) => ({
+        title: s.title,
+        amount: s.netAmount,
+        percentage: s.contributionPct,
+        customId: s.customId,
+      }));
+
+    const topPlatformName = activeCreator.dominantDsp
+      ? (activeCreator.dominantDsp === 'SPOTIFY'
+          ? 'Spotify'
+          : activeCreator.dominantDsp === 'YOUTUBE'
+          ? 'YouTube'
+          : activeCreator.dominantDsp === 'APPLE_MUSIC'
+          ? 'Apple Music'
+          : 'TikTok / DSP Lainnya')
+      : 'Spotify';
+
+    return {
+      creatorId: activeCreator.id,
+      creatorName: activeCreator.name,
+      period: 'Mei 2026',
+      totalGross: gross,
+      totalNet: net,
+      publisherShare,
+      totalSongs: songsList.length,
+      topPlatform: topPlatformName,
+      platforms: platformsList,
+      topSongs,
+      songs: songsList,
+    };
+  };
+
+  if (period === '1Q26') {
+    return get1QData();
   }
 
   if (period === 'Semua') {
-    // Accumulated (Mei 2026 + 1Q26)
-    const base1Q = getCreatorPortalData(creator, '1Q26');
-    const gross = creator.totalRoyalty + base1Q.totalGross;
-    const net = creator.netRoyalty + base1Q.totalNet;
+    const q1 = is1QPublished ? get1QData() : null;
+    const mei = isMeiPublished ? getMeiData() : null;
+
+    if (!q1 && !mei) return getEmptyData('Semua Periode (Akumulasi)');
+    if (q1 && !mei) return { ...q1, period: 'Semua Periode (Akumulasi)' };
+    if (!q1 && mei) return { ...mei, period: 'Semua Periode (Akumulasi)' };
+
+    // Both are published
+    const gross = (q1?.totalGross || 0) + (mei?.totalGross || 0);
+    const net = (q1?.totalNet || 0) + (mei?.totalNet || 0);
     const publisherShare = Math.round(gross * 0.30);
 
     const mergedPlatforms: PlatformItem[] = [
@@ -416,22 +595,25 @@ export function getCreatorPortalData(
       { name: 'LyricFind & Smule', amount: Math.round(net * 0.05), percentage: 5, color: '#8B5CF6' },
     ];
 
-    const allSongs = [...base1Q.songs];
-    const topSongs = allSongs.slice(0, 6).map((s) => ({
-      title: s.title,
-      amount: s.netAmount,
-      percentage: Number(((s.netAmount / net) * 100).toFixed(1)),
-      customId: s.customId,
-    }));
+    const allSongs = [...(q1?.songs || []), ...(mei?.songs || [])];
+    const topSongs = allSongs
+      .sort((a, b) => b.netAmount - a.netAmount)
+      .slice(0, 6)
+      .map((s) => ({
+        title: s.title,
+        amount: s.netAmount,
+        percentage: Number(((s.netAmount / (net || 1)) * 100).toFixed(1)),
+        customId: s.customId,
+      }));
 
     return {
-      creatorId: creator.id,
-      creatorName: creator.name,
+      creatorId: creatorObj.id,
+      creatorName: creatorObj.name,
       period: 'Semua Periode (Akumulasi)',
       totalGross: gross,
       totalNet: net,
       publisherShare,
-      totalSongs: allSongs.length > creator.songsCount ? allSongs.length : creator.songsCount,
+      totalSongs: allSongs.length,
       topPlatform: 'Spotify & YouTube',
       platforms: mergedPlatforms,
       topSongs,
@@ -439,72 +621,8 @@ export function getCreatorPortalData(
     };
   }
 
-  // Default: 'Mei 2026' (YouTube Mechanical)
-  const gross = creator.totalRoyalty;
-  const net = creator.netRoyalty;
-  const publisherShare = Math.round(gross * 0.30);
-
-  const adsAmount = Math.round(net * (creator.platformShares[0] / 100));
-  const subsAmount = Math.round(net * (creator.platformShares[1] / 100));
-
-  const platformsList: PlatformItem[] = [
-    {
-      name: 'YouTube Ads (Iklan)',
-      amount: adsAmount,
-      percentage: creator.platformShares[0] || 74,
-      color: '#EF4444',
-    },
-    {
-      name: 'YouTube Subscription (Music)',
-      amount: subsAmount,
-      percentage: creator.platformShares[1] || 26,
-      color: '#3B82F6',
-    },
-  ];
-
-  const songsList: SongDetailItem[] = creator.songsList.map((s, idx) => {
-    const sGross = s.amount > 0 ? Math.round(s.amount / 0.70) : 0;
-    const sNet = s.amount;
-    const pct = net > 0 ? Number(((sNet / net) * 100).toFixed(1)) : 0;
-
-    return {
-      id: `mei-${creator.id}-${idx}`,
-      title: s.title,
-      customId: s.customId || `LOKA-MEI-${idx + 1}`,
-      grossAmount: sGross,
-      netAmount: sNet,
-      contributionPct: pct,
-      dsp: 'YouTube Mechanical',
-      platformBreakdown: {
-        'YouTube Ads': Math.round(sNet * 0.74),
-        'YouTube Subscription': Math.round(sNet * 0.26),
-      },
-    };
-  });
-
-  const topSongs = [...songsList]
-    .sort((a, b) => b.netAmount - a.netAmount)
-    .slice(0, 6)
-    .map((s) => ({
-      title: s.title,
-      amount: s.netAmount,
-      percentage: s.contributionPct,
-      customId: s.customId,
-    }));
-
-  return {
-    creatorId: creator.id,
-    creatorName: creator.name,
-    period: 'Mei 2026',
-    totalGross: gross,
-    totalNet: net,
-    publisherShare,
-    totalSongs: songsList.length,
-    topPlatform: 'YouTube Mechanical',
-    platforms: platformsList,
-    topSongs,
-    songs: songsList,
-  };
+  // Default: 'Mei 2026'
+  return getMeiData();
 }
 
 /**
@@ -539,10 +657,41 @@ export function getAdminRoyaltyPeriodData(
     const adsRev = Math.round(totalGross * 0.74);
     const subsRev = Math.round(totalGross * 0.26);
 
-    const platforms: PlatformItem[] = [
-      { name: 'YouTube Ads (Iklan)', amount: Math.round(totalGross * 0.74), percentage: 74, color: '#EF4444' },
-      { name: 'YouTube Subscription (Music)', amount: Math.round(totalGross * 0.26), percentage: 26, color: '#3B82F6' },
-    ];
+    // Dynamic DSP platform aggregation from all creators
+    const dspTotals: Record<string, { name: string; amount: number; color: string }> = {
+      SPOTIFY: { name: 'Spotify', amount: 0, color: '#10B981' },
+      YOUTUBE: { name: 'YouTube', amount: 0, color: '#EF4444' },
+      APPLE_MUSIC: { name: 'Apple Music', amount: 0, color: '#F59E0B' },
+      OTHER: { name: 'DSP Lainnya (TikTok/Joox)', amount: 0, color: '#6366F1' },
+    };
+
+    let hasDspData = false;
+    for (const c of baseCreators) {
+      if (c.dspBreakdown) {
+        hasDspData = true;
+        dspTotals.SPOTIFY.amount += Math.round(c.dspBreakdown.spotify / 0.70);
+        dspTotals.YOUTUBE.amount += Math.round(c.dspBreakdown.youtube / 0.70);
+        dspTotals.APPLE_MUSIC.amount += Math.round(c.dspBreakdown.appleMusic / 0.70);
+        dspTotals.OTHER.amount += Math.round(c.dspBreakdown.other / 0.70);
+      }
+    }
+
+    let platforms: PlatformItem[] = [];
+    if (hasDspData && totalGross > 0) {
+      platforms = Object.values(dspTotals)
+        .filter((d) => d.amount > 0)
+        .map((d) => ({
+          name: d.name,
+          amount: d.amount,
+          percentage: Number(((d.amount / totalGross) * 100).toFixed(1)),
+          color: d.color,
+        }));
+    } else {
+      platforms = [
+        { name: 'YouTube Ads (Iklan)', amount: Math.round(totalGross * 0.74), percentage: 74, color: '#EF4444' },
+        { name: 'YouTube Subscription (Music)', amount: Math.round(totalGross * 0.26), percentage: 26, color: '#3B82F6' },
+      ];
+    }
 
     return {
       creators: baseCreators,
@@ -554,7 +703,7 @@ export function getAdminRoyaltyPeriodData(
         adsRev,
         subsRev,
         totalCreators: baseCreators.length,
-        batchesCount: 1,
+        batchesCount: getAllBatches().filter(b => b.period.includes('Mei 2026')).length || 4,
         platforms,
       },
     };

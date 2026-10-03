@@ -24,13 +24,16 @@ import {
   getAllBatches,
   AuditLog,
   MasterCatalogSong,
+  RoyaltyBatch,
 } from '../../data/distributionEngine';
+import { PublishModal } from './PublishModal';
 
 export interface ExceptionResolverProps {
   onBack?: () => void;
   initialBatchId?: string;
   onRefreshData?: () => void;
   onNavigateToBatchHistory?: () => void;
+  onNavigateToCreatorPortal?: () => void;
 }
 
 type ViewMode = 'rows' | 'grouped_asset';
@@ -167,9 +170,11 @@ export const ExceptionResolver: React.FC<ExceptionResolverProps> = ({
   initialBatchId,
   onRefreshData,
   onNavigateToBatchHistory,
+  onNavigateToCreatorPortal,
 }) => {
   // Batch & View filter state
   const [selectedBatchId, setSelectedBatchId] = useState<string>(initialBatchId || '');
+  const [modalPublishBatch, setModalPublishBatch] = useState<RoyaltyBatch | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('rows');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDsp, setSelectedDsp] = useState<string>('all');
@@ -216,6 +221,14 @@ export const ExceptionResolver: React.FC<ExceptionResolverProps> = ({
   };
 
   const batches = getAllBatches();
+  const currentBatch = useMemo(() => {
+    return (
+      batches.find((b) => b.batchId === selectedBatchId) ||
+      batches.find((b) => b.status === 'in_review' || b.status === 'ready_to_publish') ||
+      batches[0] ||
+      null
+    );
+  }, [batches, selectedBatchId, dataVersion]);
   const catalogSongs = useMemo(() => getMasterCatalogSongs(), []);
   const masterWriters = useMemo(() => getMasterWriters(), []);
 
@@ -720,6 +733,71 @@ export const ExceptionResolver: React.FC<ExceptionResolverProps> = ({
             </div>
           </div>
         </div>
+
+        {/* ── Banner: All Exceptions Resolved & Ready to Publish ── */}
+        {animOpen === 0 && currentBatch && currentBatch.status !== 'published' && currentBatch.status !== 'locked' && (
+          <div className="mx-6 mb-5 p-4 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-emerald-500/5 border border-emerald-300 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-lg shadow-sm shrink-0">
+                ✓
+              </div>
+              <div>
+                <div className="text-[13px] font-bold text-emerald-950 flex items-center gap-2">
+                  <span>Seluruh Pengecualian Selesai! Batch Siap Didistribusikan</span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-200 text-emerald-900 uppercase">
+                    Siap Terbit
+                  </span>
+                </div>
+                <p className="text-[12px] text-emerald-800 mt-0.5">
+                  Semua isu pada batch <strong>{currentBatch.fileName}</strong> telah diselesaikan. Distribusikan sekarang agar data royalti resmi tampil di Dashboard Portal Pencipta.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setModalPublishBatch(currentBatch)}
+                className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-md shadow-emerald-500/20"
+                iconLeft={<span>🚀</span>}
+              >
+                Distribusikan ke Portal Pencipta
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Banner: Batch Already Published ── */}
+        {currentBatch && currentBatch.status === 'published' && (
+          <div className="mx-6 mb-5 p-4 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-lg shadow-sm shrink-0">
+                🎉
+              </div>
+              <div>
+                <div className="text-[13px] font-bold text-blue-950 flex items-center gap-2">
+                  <span>Batch Telah Berhasil Terbit Resmi ke Akun Pencipta!</span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-200 text-blue-900 uppercase">
+                    Terpublikasi
+                  </span>
+                </div>
+                <p className="text-[12px] text-blue-800 mt-0.5">
+                  Seluruh royalti pada batch <strong>{currentBatch.fileName}</strong> sudah aktif dan dapat diakses pencipta di Portal Pencipta.
+                </p>
+              </div>
+            </div>
+            {onNavigateToCreatorPortal && (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={onNavigateToCreatorPortal}
+                className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-md shadow-blue-500/20"
+              >
+                Buka Portal Pencipta →
+              </Button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ─── Control Bar: Filters, Search, View Mode ─── */}
@@ -1470,6 +1548,21 @@ export const ExceptionResolver: React.FC<ExceptionResolverProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Publish Modal inside Resolver ── */}
+      {modalPublishBatch && (
+        <PublishModal
+          isOpen={!!modalPublishBatch}
+          batch={modalPublishBatch}
+          onClose={() => setModalPublishBatch(null)}
+          onSuccess={() => {
+            setModalPublishBatch(null);
+            setDataVersion((v) => v + 1);
+            if (onRefreshData) onRefreshData();
+            showToast('Batch berhasil didistribusikan resmi ke akun pencipta! 🎉', 'success');
+          }}
+        />
       )}
 
       {/* ─── CSS Animations ─── */}

@@ -1,0 +1,670 @@
+[
+  {
+    "id": "TC001",
+    "title": "Publish a ready batch through the approval gatekeeper flow",
+    "description": "This test verifies that a ready batch can be reviewed, accepted, approved, and published through the four-eyes gatekeeper flow.",
+    "category": "Upload DSP Distribution",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Select a DSP platform"
+      },
+      {
+        "type": "action",
+        "description": "Upload a valid royalty report file"
+      },
+      {
+        "type": "action",
+        "description": "Run the matching process"
+      },
+      {
+        "type": "action",
+        "description": "Resolve all exceptions in the batch"
+      },
+      {
+        "type": "action",
+        "description": "Proceed to the approval flow"
+      },
+      {
+        "type": "action",
+        "description": "Accept the declaration"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the batch is published"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the publication confirmation is visible"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC002",
+    "title": "Import a DSP report and leave it in draft after matching",
+    "description": "This test verifies that an admin can select a DSP platform, preview parsed rows, run matching, and end with a draft batch that is not yet visible to creators.",
+    "category": "Upload DSP Distribution",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Select a DSP platform"
+      },
+      {
+        "type": "action",
+        "description": "Upload a valid royalty report file"
+      },
+      {
+        "type": "action",
+        "description": "Run the matching process"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify parsed rows are displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a draft confirmation is visible"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC003",
+    "title": "Publish a ready batch through approval",
+    "description": "This test verifies that a ready batch can be published only after completing the checklist, reviewing the snapshot, selecting an eligible approver, and accepting the declaration.",
+    "category": "Batch History & Staged Publishing Gatekeeper",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Open the publish flow for a ready batch"
+      },
+      {
+        "type": "action",
+        "description": "Review the checklist and snapshot summary"
+      },
+      {
+        "type": "action",
+        "description": "Select an eligible approver"
+      },
+      {
+        "type": "action",
+        "description": "Accept the declaration and confirm publication"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the batch is marked as published"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC004",
+    "title": "Resolve an unmatched row and reach ready status",
+    "description": "This test verifies that an unmatched DSP row can be mapped correctly and that the ready banner appears once all issues are cleared.",
+    "category": "Exception Resolver",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Filter exceptions by a failure stage"
+      },
+      {
+        "type": "action",
+        "description": "Open an unmatched row for resolution"
+      },
+      {
+        "type": "action",
+        "description": "Map the row to the correct song or creator"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the row is resolved"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the ready banner is visible"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC005",
+    "title": "Keep unmatched royalties out of publishable state",
+    "description": "This test verifies that unresolved unmatched or conflicting rows remain in an exception state and do not produce a ready batch.",
+    "category": "Upload DSP Distribution",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Select a DSP platform"
+      },
+      {
+        "type": "action",
+        "description": "Upload a valid royalty report file with exceptions"
+      },
+      {
+        "type": "action",
+        "description": "Run the matching process"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify exception rows are displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the batch is not ready for publication"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC006",
+    "title": "Reject publication when the checklist is incomplete",
+    "description": "This test verifies that a batch cannot be published until the required readiness checklist is complete.",
+    "category": "Batch History & Staged Publishing Gatekeeper",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Open the publish flow for a batch that is not ready"
+      },
+      {
+        "type": "action",
+        "description": "Attempt to continue without a complete checklist"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a checklist validation message is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify publication does not complete"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC007",
+    "title": "Show only published or locked statements in the creator portal",
+    "description": "This test verifies that a creator can switch account view, select a period, and see only published or locked royalty statements with the correct verification state.",
+    "category": "Creator Portal",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Switch to a creator account view"
+      },
+      {
+        "type": "action",
+        "description": "Select a reporting period"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify only published or locked royalty statements are displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a verification banner is visible when the period is under review or unverified"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC008",
+    "title": "Resolve a royalty exception with a required reason",
+    "description": "This test verifies that an unresolved row can be placed on hold or ignored only after providing the required reason and the batch progresses toward readiness.",
+    "category": "Upload DSP Distribution",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Select a DSP platform"
+      },
+      {
+        "type": "action",
+        "description": "Upload a valid royalty report file with exceptions"
+      },
+      {
+        "type": "action",
+        "description": "Run the matching process"
+      },
+      {
+        "type": "action",
+        "description": "Choose an unmatched row to resolve"
+      },
+      {
+        "type": "action",
+        "description": "Place the row on hold or ignore it"
+      },
+      {
+        "type": "action",
+        "description": "Fill in a required reason"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the exception is resolved"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the batch is closer to ready for publication"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC009",
+    "title": "Unpublish a published batch with a valid reason",
+    "description": "This test verifies that a published batch can be rolled back after entering a valid reason and reviewing the affected creator information.",
+    "category": "Batch History & Staged Publishing Gatekeeper",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Open the unpublish flow for a published batch"
+      },
+      {
+        "type": "action",
+        "description": "Enter a reason that meets the minimum length requirement"
+      },
+      {
+        "type": "action",
+        "description": "Review the affected creator information"
+      },
+      {
+        "type": "action",
+        "description": "Confirm the rollback"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the batch returns to ready-to-publish status"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC010",
+    "title": "Filter and inspect creator results in the admin dashboard",
+    "description": "This test verifies that an admin can change the reporting period, search or sort creators, and open a creator row to inspect details.",
+    "category": "Admin Royalty Dashboard",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Select a reporting period"
+      },
+      {
+        "type": "action",
+        "description": "Search or sort the creator list"
+      },
+      {
+        "type": "action",
+        "description": "Open a creator row"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify creator-level details are displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the selected period remains applied"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC011",
+    "title": "Hold or ignore a row with a required reason",
+    "description": "This test verifies that a row can be placed on hold or ignored only after entering a required reason and that the exception is cleared afterward.",
+    "category": "Exception Resolver",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Filter exceptions by a failure stage"
+      },
+      {
+        "type": "action",
+        "description": "Open a row that needs manual handling"
+      },
+      {
+        "type": "action",
+        "description": "Choose to put the row on hold or ignore it"
+      },
+      {
+        "type": "action",
+        "description": "Enter a required reason"
+      },
+      {
+        "type": "action",
+        "description": "Confirm the action"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the row is no longer open"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the reasoned resolution is reflected"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC012",
+    "title": "Block publication until the checklist is complete",
+    "description": "This test verifies that a batch cannot be published while required checklist items are incomplete and that the UI keeps it in a non-publishable state.",
+    "category": "Upload DSP Distribution",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Select a DSP platform"
+      },
+      {
+        "type": "action",
+        "description": "Upload a valid royalty report file"
+      },
+      {
+        "type": "action",
+        "description": "Run the matching process"
+      },
+      {
+        "type": "action",
+        "description": "Attempt to proceed to publication with the checklist incomplete"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a checklist validation warning is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the batch remains unpublished"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC013",
+    "title": "Lock a published period",
+    "description": "This test verifies that a published batch can be permanently closed as a locked period.",
+    "category": "Batch History & Staged Publishing Gatekeeper",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Open a published batch"
+      },
+      {
+        "type": "action",
+        "description": "Choose to close the period"
+      },
+      {
+        "type": "action",
+        "description": "Confirm the lock action"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the batch is marked as locked"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC014",
+    "title": "Review gross and net royalties in the creator portal",
+    "description": "This test verifies that a creator can inspect gross and net royalty amounts for a selected period.",
+    "category": "Creator Portal",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Switch to a creator account view"
+      },
+      {
+        "type": "action",
+        "description": "Select a reporting period"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify gross royalty amounts are displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify net royalty amounts are displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC015",
+    "title": "Preview parsed report rows before matching",
+    "description": "This test verifies that an uploaded DSP report shows a parsed row preview before the distribution engine is run.",
+    "category": "Upload DSP Distribution",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Select a DSP platform"
+      },
+      {
+        "type": "action",
+        "description": "Upload a valid royalty report file"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify parsed rows are displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the batch is still in draft"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC016",
+    "title": "Cancel a draft batch",
+    "description": "This test verifies that a draft batch can be cancelled and is shown as cancelled afterward.",
+    "category": "Batch History & Staged Publishing Gatekeeper",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Open a draft batch"
+      },
+      {
+        "type": "action",
+        "description": "Choose to cancel the batch"
+      },
+      {
+        "type": "action",
+        "description": "Confirm the cancellation"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the batch is marked as cancelled"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC017",
+    "title": "Download a creator statement as CSV",
+    "description": "This test verifies that a creator can download the currently viewed statement data as CSV from the portal.",
+    "category": "Creator Portal",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Switch to a creator account view"
+      },
+      {
+        "type": "action",
+        "description": "Select a reporting period"
+      },
+      {
+        "type": "action",
+        "description": "Download the statement as CSV"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the statement download action is available"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the currently selected period remains visible"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC018",
+    "title": "Require a minimum-length reason to unpublish",
+    "description": "This test verifies that the unpublish flow blocks submission until the reason meets the minimum length requirement.",
+    "category": "Batch History & Staged Publishing Gatekeeper",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Open the unpublish flow for a published batch"
+      },
+      {
+        "type": "action",
+        "description": "Enter a short reason that is below the minimum length"
+      },
+      {
+        "type": "action",
+        "description": "Attempt to confirm the rollback"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a reason validation message is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the batch remains published"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC019",
+    "title": "Block hold or ignore without a reason",
+    "description": "This test verifies that manual exception handling cannot be completed until a required reason is provided.",
+    "category": "Exception Resolver",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Filter exceptions by a failure stage"
+      },
+      {
+        "type": "action",
+        "description": "Open a row that needs manual handling"
+      },
+      {
+        "type": "action",
+        "description": "Choose to put the row on hold or ignore it"
+      },
+      {
+        "type": "action",
+        "description": "Attempt to confirm without entering a reason"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a required reason validation message is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the row remains open"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC020",
+    "title": "Review batch status badges and audit logs",
+    "description": "This test verifies that batch lifecycle badges and audit history are visible for operational review.",
+    "category": "Batch History & Staged Publishing Gatekeeper",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Open the batch history view"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify batch status badges are displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify audit logs are displayed"
+      }
+    ],
+    "priority": "Low"
+  }
+]

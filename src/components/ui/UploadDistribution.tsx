@@ -206,6 +206,149 @@ export const UploadDistribution: React.FC<UploadDistributionProps> = ({
     setError(null);
   };
 
+  const handleLoadDemoDspData = (dsp: DSPCode) => {
+    const demoPeriod = 'Juli 2026';
+    setPeriod(demoPeriod);
+    setSelectedDsp(dsp);
+
+    let demoRows: DSPReportRow[] = [];
+    if (dsp === 'SPOTIFY') {
+      demoRows = [
+        {
+          rowIndex: 2,
+          assetId: 'spotify:track:7qiZfU4dY1lWllzX7mPBI3',
+          customId: 'L000788',
+          day: '2026-07-01',
+          country: 'ID',
+          rightType: 'Mechanical',
+          adjustmentType: 'None',
+          incomeRev: 185.50,
+          idrRev: 2950000,
+          writers: 'Immanuel Andriano Kure',
+          songTitle: 'Karna Su Sayang (Spotify Premium Stream)',
+        },
+        {
+          rowIndex: 3,
+          assetId: 'spotify:track:6rqhFgbbKwnb9MLmUQDhG6',
+          customId: 'L000678',
+          day: '2026-07-02',
+          country: 'MY',
+          rightType: 'Mechanical',
+          adjustmentType: 'None',
+          incomeRev: 75.00,
+          idrRev: 1200000,
+          writers: 'Tomo Widayat',
+          songTitle: 'Turah Wani (Spotify Free Stream)',
+        },
+        {
+          rowIndex: 4,
+          assetId: 'spotify:track:1dGr1nsAZOsAcR86bGQeh2',
+          customId: 'L000712',
+          day: '2026-07-03',
+          country: 'SG',
+          rightType: 'Mechanical',
+          adjustmentType: 'None',
+          incomeRev: 52.00,
+          idrRev: 850000,
+          writers: 'Immanuel Andriano Kure',
+          songTitle: 'Bilang Pada Tuhanmu (Spotify Premium)',
+        },
+      ];
+    } else if (dsp === 'APPLE_MUSIC') {
+      demoRows = [
+        {
+          rowIndex: 2,
+          assetId: 'apple:track:1440857781',
+          customId: 'L000788',
+          day: '2026-07-01',
+          country: 'US',
+          rightType: 'Mechanical',
+          adjustmentType: 'None',
+          incomeRev: 140.00,
+          idrRev: 2240000,
+          writers: 'Immanuel Andriano Kure',
+          songTitle: 'Karna Su Sayang (Apple Music US Storefront)',
+        },
+        {
+          rowIndex: 3,
+          assetId: 'apple:track:1583928192',
+          customId: 'L000678',
+          day: '2026-07-02',
+          country: 'SG',
+          rightType: 'Mechanical',
+          adjustmentType: 'None',
+          incomeRev: 60.00,
+          idrRev: 960000,
+          writers: 'Tomo Widayat',
+          songTitle: 'Turah Wani (Apple Music SG)',
+        },
+      ];
+    } else if (dsp === 'OTHER') {
+      demoRows = [
+        {
+          rowIndex: 2,
+          assetId: 'TK-881923011',
+          customId: 'L000788',
+          day: '2026-07-01',
+          country: 'ID',
+          rightType: 'Synchronization',
+          adjustmentType: 'None',
+          incomeRev: 95.00,
+          idrRev: 1520000,
+          writers: 'Immanuel Andriano Kure',
+          songTitle: 'Karna Su Sayang (TikTok Sound Clip 15s)',
+        },
+        {
+          rowIndex: 3,
+          assetId: 'TK-928173491',
+          customId: 'L000678',
+          day: '2026-07-02',
+          country: 'ID',
+          rightType: 'Synchronization',
+          adjustmentType: 'None',
+          incomeRev: 45.00,
+          idrRev: 720000,
+          writers: 'Tomo Widayat',
+          songTitle: 'Turah Wani (TikTok Sound Clip)',
+        },
+      ];
+    } else {
+      // YOUTUBE
+      demoRows = [
+        {
+          rowIndex: 2,
+          assetId: 'A190284573018264',
+          customId: 'L000678',
+          day: '2026-07-01',
+          country: 'ID',
+          rightType: 'Mechanical',
+          adjustmentType: 'None',
+          incomeRev: 125.00,
+          idrRev: 2000000,
+          writers: 'Tomo Widayat',
+          songTitle: 'Turah Wani (YouTube Official Music Video)',
+        },
+        {
+          rowIndex: 3,
+          assetId: 'A311526478290561',
+          customId: 'L000788',
+          day: '2026-07-02',
+          country: 'ID',
+          rightType: 'Mechanical',
+          adjustmentType: 'None',
+          incomeRev: 110.00,
+          idrRev: 1760000,
+          writers: 'Immanuel Andriano Kure',
+          songTitle: 'Karna Su Sayang (YouTube Audio Stream)',
+        },
+      ];
+    }
+
+    setParsedRows(demoRows);
+    setStep('preview');
+    setError(null);
+  };
+
   // ─── Step 3: Process Distribution ────────────────────
   const handleProcess = async () => {
     if (!selectedDsp || parsedRows.length === 0) return;
@@ -488,6 +631,21 @@ export const UploadDistribution: React.FC<UploadDistributionProps> = ({
                   </p>
                 </>
               )}
+            </div>
+
+            {/* Quick Demo Loader for the selected DSP */}
+            <div className="mt-4 p-3 bg-[#EFF6FF] border border-[#BFDBFE] rounded-[8px] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="text-[12px] text-[#1E40AF]">
+                <strong>💡 Simulasi Cepat:</strong> Muat contoh baris laporan {DSP_CONFIGS[selectedDsp].label} tanpa perlu file fisik untuk menguji pencocokan 3 tahap.
+              </div>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => handleLoadDemoDspData(selectedDsp)}
+                className="shrink-0 bg-white hover:bg-[#DBEAFE] text-[#1D4ED8] border-[#93C5FD]"
+              >
+                Muat Demo {DSP_CONFIGS[selectedDsp].label}
+              </Button>
             </div>
 
             {/* Sheet Selector (if multiple sheets) */}

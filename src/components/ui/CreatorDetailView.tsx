@@ -188,41 +188,68 @@ export const CreatorDetailView: React.FC<CreatorDetailViewProps> = ({
             <div className="flex items-center justify-between mb-4">
               <Typography variant="heading-2">Kanal Pendapatan & Geografi</Typography>
               <span className="text-[12px] font-semibold text-[#059669] bg-[#ECFDF5] px-2.5 py-1 rounded-md">
-                YouTube Split
+                {creator.dspPlatforms && creator.dspPlatforms.length > 1 ? 'Multi-DSP Split' : 'DSP Split'}
               </span>
             </div>
 
-            {/* Split bars */}
+            {/* Multi-DSP & Platform split bars */}
             <div className="space-y-3 mb-6">
-              <div>
-                <div className="flex justify-between text-[13px] mb-1">
-                  <span className="font-medium text-[#111827]">YouTube Advertising (Ads)</span>
-                  <span className="font-semibold text-[#111827] tabular-nums">
-                    {formatCurrency(creator.adsRev)} ({creator.youtubeBreakdown.adsPct}%)
-                  </span>
-                </div>
-                <div className="w-full h-2 bg-[#F3F4F6] rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-[#EF4444] rounded-full"
-                    style={{ width: `${creator.youtubeBreakdown.adsPct}%` }}
-                  />
-                </div>
-              </div>
+              {creator.dspPlatforms && creator.dspPlatforms.length > 0 ? (
+                creator.dspPlatforms.map((p) => (
+                  <div key={p.name}>
+                    <div className="flex justify-between text-[13px] mb-1">
+                      <div className="flex items-center gap-1.5 font-medium text-[#111827]">
+                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: p.color }} />
+                        <span>{p.name}</span>
+                      </div>
+                      <span className="font-semibold text-[#111827] tabular-nums">
+                        {formatCurrency(p.amount)} ({p.percentage}%)
+                      </span>
+                    </div>
+                    <div className="w-full h-2 bg-[#F3F4F6] rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-300"
+                        style={{
+                          width: `${Math.max(p.percentage, 2)}%`,
+                          backgroundColor: p.color,
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <>
+                  <div>
+                    <div className="flex justify-between text-[13px] mb-1">
+                      <span className="font-medium text-[#111827]">YouTube Advertising (Ads)</span>
+                      <span className="font-semibold text-[#111827] tabular-nums">
+                        {formatCurrency(creator.adsRev)} ({creator.youtubeBreakdown.adsPct}%)
+                      </span>
+                    </div>
+                    <div className="w-full h-2 bg-[#F3F4F6] rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-[#EF4444] rounded-full"
+                        style={{ width: `${creator.youtubeBreakdown.adsPct}%` }}
+                      />
+                    </div>
+                  </div>
 
-              <div>
-                <div className="flex justify-between text-[13px] mb-1">
-                  <span className="font-medium text-[#111827]">YouTube Premium / Subscription</span>
-                  <span className="font-semibold text-[#111827] tabular-nums">
-                    {formatCurrency(creator.subsRev)} ({creator.youtubeBreakdown.subsPct}%)
-                  </span>
-                </div>
-                <div className="w-full h-2 bg-[#F3F4F6] rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-[#3B82F6] rounded-full"
-                    style={{ width: `${creator.youtubeBreakdown.subsPct}%` }}
-                  />
-                </div>
-              </div>
+                  <div>
+                    <div className="flex justify-between text-[13px] mb-1">
+                      <span className="font-medium text-[#111827]">YouTube Premium / Subscription</span>
+                      <span className="font-semibold text-[#111827] tabular-nums">
+                        {formatCurrency(creator.subsRev)} ({creator.youtubeBreakdown.subsPct}%)
+                      </span>
+                    </div>
+                    <div className="w-full h-2 bg-[#F3F4F6] rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-[#3B82F6] rounded-full"
+                        style={{ width: `${creator.youtubeBreakdown.subsPct}%` }}
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Top Countries */}
@@ -342,8 +369,13 @@ export const CreatorDetailView: React.FC<CreatorDetailViewProps> = ({
                           {idx + 1}
                         </td>
                         <td className="px-4 py-3 font-semibold text-[#111827]">
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <span>{song.title}</span>
+                            {song.dsp && (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-[#EFF6FF] text-[#2563EB] border border-[#BFDBFE]">
+                                {song.dsp}
+                              </span>
+                            )}
                             {song.customId && (
                               <span className="px-1.5 py-0.5 rounded text-[10px] bg-[#F3F4F6] text-[#6B7280] font-mono">
                                 {song.customId}
@@ -379,33 +411,57 @@ export const CreatorDetailView: React.FC<CreatorDetailViewProps> = ({
                           <td colSpan={6} className="p-4 border-b border-[#E2E8F0]">
                             <div className="animate-in fade-in duration-200">
                               <h6 className="text-[13px] font-semibold text-[#1E293B] mb-2 flex items-center gap-2">
-                                <span>Rincian Monetisasi YouTube untuk:</span>
+                                <span>Rincian Pendapatan DSP Platform untuk:</span>
                                 <span className="text-[#2563EB]">"{song.title}"</span>
                               </h6>
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md">
-                                <div className="bg-white p-3 rounded-md border border-[#E2E8F0] shadow-2xs">
-                                  <div className="flex justify-between items-center text-[12px] mb-1">
-                                    <span className="font-medium text-[#EF4444]">YouTube Ads</span>
-                                    <span className="text-[#64748B] tabular-nums">
-                                      {song.amount > 0 ? ((song.adsRev / song.amount) * 100).toFixed(0) : 0}%
-                                    </span>
+                              {song.dspBreakdown && Object.keys(song.dspBreakdown).length > 0 ? (
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-2xl">
+                                  {Object.entries(song.dspBreakdown).map(([platName, amt]) => {
+                                    const platPct = song.amount > 0 ? ((amt / song.amount) * 100).toFixed(0) : 0;
+                                    const badgeColor =
+                                      platName.includes('Spotify') ? 'text-[#10B981]'
+                                      : platName.includes('YouTube') ? 'text-[#EF4444]'
+                                      : platName.includes('Apple') ? 'text-[#F59E0B]'
+                                      : 'text-[#6366F1]';
+                                    return (
+                                      <div key={platName} className="bg-white p-3 rounded-md border border-[#E2E8F0] shadow-2xs">
+                                        <div className="flex justify-between items-center text-[12px] mb-1">
+                                          <span className={`font-semibold ${badgeColor}`}>{platName}</span>
+                                          <span className="text-[#64748B] tabular-nums">{platPct}%</span>
+                                        </div>
+                                        <div className="text-[14px] font-bold text-[#0F172A] tabular-nums">
+                                          {formatCurrency(amt)}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              ) : (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md">
+                                  <div className="bg-white p-3 rounded-md border border-[#E2E8F0] shadow-2xs">
+                                    <div className="flex justify-between items-center text-[12px] mb-1">
+                                      <span className="font-medium text-[#EF4444]">YouTube Ads</span>
+                                      <span className="text-[#64748B] tabular-nums">
+                                        {song.amount > 0 ? ((song.adsRev / song.amount) * 100).toFixed(0) : 0}%
+                                      </span>
+                                    </div>
+                                    <div className="text-[14px] font-bold text-[#0F172A] tabular-nums">
+                                      {formatCurrency(song.adsRev)}
+                                    </div>
                                   </div>
-                                  <div className="text-[14px] font-bold text-[#0F172A] tabular-nums">
-                                    {formatCurrency(song.adsRev)}
+                                  <div className="bg-white p-3 rounded-md border border-[#E2E8F0] shadow-2xs">
+                                    <div className="flex justify-between items-center text-[12px] mb-1">
+                                      <span className="font-medium text-[#3B82F6]">YouTube Subscription</span>
+                                      <span className="text-[#64748B] tabular-nums">
+                                        {song.amount > 0 ? ((song.subsRev / song.amount) * 100).toFixed(0) : 0}%
+                                      </span>
+                                    </div>
+                                    <div className="text-[14px] font-bold text-[#0F172A] tabular-nums">
+                                      {formatCurrency(song.subsRev)}
+                                    </div>
                                   </div>
                                 </div>
-                                <div className="bg-white p-3 rounded-md border border-[#E2E8F0] shadow-2xs">
-                                  <div className="flex justify-between items-center text-[12px] mb-1">
-                                    <span className="font-medium text-[#3B82F6]">YouTube Subscription</span>
-                                    <span className="text-[#64748B] tabular-nums">
-                                      {song.amount > 0 ? ((song.subsRev / song.amount) * 100).toFixed(0) : 0}%
-                                    </span>
-                                  </div>
-                                  <div className="text-[14px] font-bold text-[#0F172A] tabular-nums">
-                                    {formatCurrency(song.subsRev)}
-                                  </div>
-                                </div>
-                              </div>
+                              )}
                             </div>
                           </td>
                         </tr>
